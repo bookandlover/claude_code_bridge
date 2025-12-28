@@ -78,8 +78,7 @@ def main(argv: list[str]) -> int:
             raise RuntimeError(f"❌ Session error: {status}")
 
         _, state = comm._send_message(message)
-        print("✅ Message sent to Gemini", file=sys.stderr)
-        print("⚠️ CCB_END_TURN", file=sys.stderr)
+        print("CCB_END_TURN", file=sys.stderr)
         reply, _ = comm.log_reader.wait_for_message(state, timeout)
         if not reply:
             if not quiet:
@@ -88,13 +87,11 @@ def main(argv: list[str]) -> int:
 
         if output_path:
             atomic_write_text(output_path, reply + "\n")
-            print("\n⚠️ CCB_END_TURN", file=sys.stderr)
             return EXIT_OK
 
         sys.stdout.write(reply)
         if not reply.endswith("\n"):
             sys.stdout.write("\n")
-        print("\n⚠️ CCB_END_TURN", file=sys.stderr)
         return EXIT_OK
     except KeyboardInterrupt:
         return 130
