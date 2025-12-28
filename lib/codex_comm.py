@@ -44,6 +44,74 @@ class CodexLogReader:
             poll = 0.05
         self._poll_interval = min(0.5, max(0.01, poll))
 
+    @staticmethod
+    def _debug_enabled() -> bool:
+        return os.environ.get("CCB_DEBUG") in ("1", "true", "yes") or os.environ.get("CPEND_DEBUG") in (
+            "1",
+            "true",
+            "yes",
+        )
+
+    @classmethod
+    def _debug(cls, message: str) -> None:
+        if not cls._debug_enabled():
+            return
+        print(f"[DEBUG] {message}", file=sys.stderr)
+
+    @staticmethod
+    def _env_int(name: str, default: int) -> int:
+        raw = os.environ.get(name)
+        if raw is None or raw == "":
+            return default
+        try:
+            return int(raw)
+        except ValueError:
+            return default
+
+    def _iter_lines_reverse(self, log_path: Path, *, max_bytes: int, max_lines: int) -> List[str]:
+        """
+        Read lines from the end of a file (reverse order), bounded by max_bytes/max_lines.
+        Returns a list in reverse chronological order (last line first).
+        """
+        if max_bytes <= 0 or max_lines <= 0:
+            return []
+
+        try:
+            with log_path.open("rb") as handle:
+                handle.seek(0, os.SEEK_END)
+                position = handle.tell()
+                bytes_read = 0
+                lines: List[str] = []
+                buffer = b""
+
+                while position > 0 and bytes_read < max_bytes and len(lines) < max_lines:
+                    remaining = max_bytes - bytes_read
+                    read_size = min(8192, position, remaining)
+                    position -= read_size
+                    handle.seek(position, os.SEEK_SET)
+                    chunk = handle.read(read_size)
+                    bytes_read += len(chunk)
+                    buffer = chunk + buffer
+
+                    parts = buffer.split(b"\n")
+                    buffer = parts[0]
+                    for part in reversed(parts[1:]):
+                        if len(lines) >= max_lines:
+                            break
+                        text = part.decode("utf-8", errors="ignore").strip()
+                        if text:
+                            lines.append(text)
+
+                if position == 0 and buffer and len(lines) < max_lines:
+                    text = buffer.decode("utf-8", errors="ignore").strip()
+                    if text:
+                        lines.append(text)
+
+                return lines
+        except OSError as exc:
+            self._debug(f"Failed reading log tail: {log_path} ({exc})")
+            return []
+
     def set_preferred_log(self, log_path: Optional[Path]) -> None:
         self._preferred_log = self._normalize_path(log_path)
 
@@ -90,6 +158,12 @@ class CodexLogReader:
             latest: Optional[Path] = None
             latest_mtime = -1.0
             for p in (p for p in self.root.glob("**/*.jsonl") if p.is_file()):
+                if self._session_id_filter:
+                    try:
+                        if str(self._session_id_filter).lower() not in str(p).lower():
+                            continue
+                    except Exception:
+                        pass
                 if self._work_dir:
                     cwd = self._extract_cwd_from_log(p)
                     if not cwd or cwd != self._work_dir:
@@ -108,22 +182,18 @@ class CodexLogReader:
 
     def _latest_log(self) -> Optional[Path]:
         preferred = self._preferred_log
-        # Always scan for latest to detect if preferred is stale
+        # If preferred exists and is valid, use it directly (avoid scanning)
+        if preferred and preferred.exists():
+            self._debug(f"Using preferred log: {preferred}")
+            return preferred
+        # Only scan when no preferred or preferred is invalid
+        self._debug("No valid preferred log, scanning...")
         latest = self._scan_latest()
         if latest:
-            # If preferred is stale (different file or older), update it
-            if not preferred or not preferred.exists() or latest != preferred:
-                try:
-                    preferred_mtime = preferred.stat().st_mtime if preferred and preferred.exists() else 0
-                    latest_mtime = latest.stat().st_mtime
-                    if latest_mtime > preferred_mtime:
-                        self._preferred_log = latest
-                        return latest
-                except OSError:
-                    self._preferred_log = latest
-                    return latest
-            return preferred if preferred and preferred.exists() else latest
-        return preferred if preferred and preferred.exists() else None
+            self._preferred_log = latest
+            self._debug(f"Scan found: {latest}")
+            return latest
+        return None
 
     def current_log_path(self) -> Optional[Path]:
         return self._latest_log()
@@ -158,25 +228,14 @@ class CodexLogReader:
         log_path = self._latest_log()
         if not log_path or not log_path.exists():
             return None
-        try:
-            with log_path.open("rb") as handle:
-                handle.seek(0, os.SEEK_END)
-                buffer = bytearray()
-                position = handle.tell()
-                while position > 0 and len(buffer) < 1024 * 256:
-                    read_size = min(4096, position)
-                    position -= read_size
-                    handle.seek(position)
-                    buffer = handle.read(read_size) + buffer
-                    if buffer.count(b"\n") >= 50:
-                        break
-                lines = buffer.decode("utf-8", errors="ignore").splitlines()
-        except OSError:
+        tail_bytes = self._env_int("CODEX_LOG_TAIL_BYTES", 1024 * 1024 * 8)
+        tail_lines = self._env_int("CODEX_LOG_TAIL_LINES", 5000)
+        lines = self._iter_lines_reverse(log_path, max_bytes=tail_bytes, max_lines=tail_lines)
+        if not lines:
             return None
 
-        for line in reversed(lines):
-            line = line.strip()
-            if not line:
+        for line in lines:
+            if not line.startswith("{"):
                 continue
             try:
                 entry = json.loads(line)
@@ -185,6 +244,7 @@ class CodexLogReader:
             message = self._extract_message(entry)
             if message:
                 return message
+        self._debug(f"No reply found in tail (bytes={tail_bytes}, lines={tail_lines}) for log: {log_path}")
         return None
 
     def _read_since(self, state: Dict[str, Any], timeout: float, block: bool) -> Tuple[Optional[str], Dict[str, Any]]:
@@ -289,20 +349,50 @@ class CodexLogReader:
 
     @staticmethod
     def _extract_message(entry: dict) -> Optional[str]:
-        if entry.get("type") != "response_item":
-            return None
+        entry_type = entry.get("type")
         payload = entry.get("payload", {})
-        if payload.get("type") != "message":
+
+        if entry_type == "response_item":
+            if payload.get("type") != "message":
+                return None
+            if payload.get("role") == "user":
+                return None
+
+            content = payload.get("content") or []
+            if isinstance(content, list):
+                texts: List[str] = []
+                for item in content:
+                    if not isinstance(item, dict):
+                        continue
+                    if item.get("type") in ("output_text", "text"):
+                        text = item.get("text")
+                        if isinstance(text, str) and text.strip():
+                            texts.append(text.strip())
+                if texts:
+                    return "\n".join(texts).strip()
+            elif isinstance(content, str) and content.strip():
+                return content.strip()
+
+            message = payload.get("message")
+            if isinstance(message, str) and message.strip():
+                return message.strip()
             return None
 
-        content = payload.get("content") or []
-        texts = [item.get("text", "") for item in content if item.get("type") == "output_text"]
-        if texts:
-            return "\n".join(filter(None, texts)).strip()
+        if entry_type == "event_msg":
+            payload_type = payload.get("type")
+            if payload_type in ("assistant_message", "assistant", "assistant_response", "message"):
+                if payload.get("role") == "user":
+                    return None
+                msg = payload.get("message") or payload.get("content") or payload.get("text")
+                if isinstance(msg, str) and msg.strip():
+                    return msg.strip()
+            return None
 
-        message = payload.get("message")
-        if isinstance(message, str) and message.strip():
-            return message.strip()
+        # Fallback: some Codex builds may emit assistant messages with a role field but different entry types.
+        if payload.get("role") == "assistant":
+            msg = payload.get("message") or payload.get("content") or payload.get("text")
+            if isinstance(msg, str) and msg.strip():
+                return msg.strip()
         return None
 
     @staticmethod
@@ -330,41 +420,43 @@ class CodexLogReader:
         log_path = self._latest_log()
         if not log_path or not log_path.exists():
             return []
-
-        # Read entire file to find all message entries
-        try:
-            with log_path.open("r", encoding="utf-8", errors="ignore") as handle:
-                lines = handle.readlines()
-        except OSError:
+        if n <= 0:
             return []
 
-        questions: List[str] = []
-        replies: List[str] = []
+        tail_bytes = self._env_int("CODEX_LOG_CONV_TAIL_BYTES", 1024 * 1024 * 32)
+        tail_lines = self._env_int("CODEX_LOG_CONV_TAIL_LINES", 20000)
+        lines = self._iter_lines_reverse(log_path, max_bytes=tail_bytes, max_lines=tail_lines)
+        if not lines:
+            return []
 
-        # Collect Q&A pairs in order
-        conversations: List[Tuple[str, str]] = []
-        pending_question: Optional[str] = None
+        pairs_rev: List[Tuple[str, str]] = []
+        pending_reply: Optional[str] = None
 
         for line in lines:
-            line = line.strip()
-            if not line:
+            if not line.startswith("{"):
                 continue
             try:
                 entry = json.loads(line)
             except json.JSONDecodeError:
                 continue
 
+            if pending_reply is None:
+                ai_msg = self._extract_message(entry)
+                if ai_msg:
+                    pending_reply = ai_msg
+                continue
+
             user_msg = self._extract_user_message(entry)
             if user_msg:
-                pending_question = user_msg
+                pairs_rev.append((user_msg, pending_reply))
+                pending_reply = None
+                if len(pairs_rev) >= n:
+                    break
 
-            ai_msg = self._extract_message(entry)
-            if ai_msg and pending_question is not None:
-                conversations.append((pending_question, ai_msg))
-                pending_question = None
-
-        # Return last n conversations
-        return conversations[-n:] if len(conversations) > n else conversations
+        pairs = list(reversed(pairs_rev))
+        if not pairs:
+            self._debug(f"No conversations found in tail (bytes={tail_bytes}, lines={tail_lines}) for log: {log_path}")
+        return pairs
 
 
 class CodexCommunicator:

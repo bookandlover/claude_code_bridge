@@ -4,6 +4,7 @@ cpend - View latest Codex reply
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -22,6 +23,15 @@ except ImportError as exc:
     print(f"Import failed: {exc}")
     sys.exit(1)
 
+def _debug_enabled() -> bool:
+    return (os.environ.get("CCB_DEBUG") in ("1", "true", "yes")) or (os.environ.get("CPEND_DEBUG") in ("1", "true", "yes"))
+
+
+def _debug(message: str) -> None:
+    if not _debug_enabled():
+        return
+    print(f"[DEBUG] {message}", file=sys.stderr)
+
 
 def _load_session_log_path() -> Path | None:
     """Load codex_session_path from .codex-session if exists"""
@@ -34,8 +44,8 @@ def _load_session_log_path() -> Path | None:
         path_str = data.get("codex_session_path")
         if path_str:
             return Path(path_str).expanduser()
-    except Exception:
-        pass
+    except Exception as exc:
+        _debug(f"Failed to read .codex-session ({session_file}): {exc}")
     return None
 
 def _parse_n(argv: list[str]) -> int:
@@ -58,6 +68,8 @@ def main(argv: list[str]) -> int:
 
         # Try session-specific log path first, fallback to scanning latest
         log_path = _load_session_log_path()
+        if log_path:
+            _debug(f"Using codex_session_path from .codex-session: {log_path}")
         reader = CodexLogReader(log_path=log_path)
 
         # If specified log has no reply, try scanning for latest
@@ -69,6 +81,7 @@ def main(argv: list[str]) -> int:
                 if latest and latest != log_path:
                     reader.set_preferred_log(latest)
                     log_path = latest
+                    _debug(f"Preferred log had no reply; switching to latest: {log_path}")
 
         if n > 1:
             conversations = reader.latest_conversations(n)
@@ -90,6 +103,10 @@ def main(argv: list[str]) -> int:
         print(message)
         return EXIT_OK
     except Exception as exc:
+        if _debug_enabled():
+            import traceback
+
+            traceback.print_exc()
         print(f"[ERROR] {t('execution_failed', error=exc)}", file=sys.stderr)
         return EXIT_ERROR
 

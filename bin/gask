@@ -21,10 +21,31 @@ setup_windows_encoding()
 from cli_output import EXIT_ERROR, EXIT_NO_REPLY, EXIT_OK, atomic_write_text
 
 
+def _check_background_mode() -> bool:
+    """Check if running in background mode (stdout redirected to file)."""
+    if os.environ.get("CCB_ALLOW_FOREGROUND") in ("1", "true", "yes"):
+        return True
+    try:
+        import stat
+        mode = os.fstat(sys.stdout.fileno()).st_mode
+        if stat.S_ISREG(mode):
+            return True
+    except Exception:
+        pass
+    if os.environ.get("CLAUDECODE") == "1":
+        print("[ERROR] gask must run with run_in_background=true", file=sys.stderr)
+        print("Use: Bash(gask \"...\", run_in_background=true)", file=sys.stderr)
+        return False
+    return True
+
+
 def main(argv: list[str]) -> int:
     if len(argv) <= 1:
         print("Usage: gask [--timeout SECONDS] [--output FILE] <message>", file=sys.stderr)
         return EXIT_ERROR
+
+    if not _check_background_mode():
+        return 1
 
     output_path: Path | None = None
     timeout: float | None = None

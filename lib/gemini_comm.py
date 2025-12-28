@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
@@ -56,6 +57,16 @@ class GeminiLogReader:
             force = 1.0
         self._force_read_interval = min(5.0, max(0.2, force))
 
+    @staticmethod
+    def _debug_enabled() -> bool:
+        return os.environ.get("CCB_DEBUG") in ("1", "true", "yes") or os.environ.get("GPEND_DEBUG") in ("1", "true", "yes")
+
+    @classmethod
+    def _debug(cls, message: str) -> None:
+        if not cls._debug_enabled():
+            return
+        print(f"[DEBUG] {message}", file=sys.stderr)
+
     def _chats_dir(self) -> Optional[Path]:
         chats = self.root / self._project_hash / "chats"
         return chats if chats.exists() else None
@@ -93,28 +104,18 @@ class GeminiLogReader:
 
     def _latest_session(self) -> Optional[Path]:
         preferred = self._preferred_session
-        # Always scan for latest to detect if preferred is stale
+        # If preferred exists and is valid, use it directly (avoid scanning)
+        if preferred and preferred.exists():
+            self._debug(f"Using preferred session: {preferred}")
+            return preferred
+        # Only scan when no preferred or preferred is invalid
+        self._debug("No valid preferred session, scanning...")
         latest = self._scan_latest_session()
         if latest:
-            # If preferred is stale (different file or older), update it
-            if not preferred or not preferred.exists() or latest != preferred:
-                try:
-                    preferred_mtime = preferred.stat().st_mtime if preferred and preferred.exists() else 0
-                    latest_mtime = latest.stat().st_mtime
-                    if latest_mtime > preferred_mtime:
-                        self._preferred_session = latest
-                        try:
-                            project_hash = latest.parent.parent.name
-                            if project_hash:
-                                self._project_hash = project_hash
-                        except Exception:
-                            pass
-                        return latest
-                except OSError:
-                    self._preferred_session = latest
-                    return latest
-            return preferred
-        return preferred if preferred and preferred.exists() else None
+            self._preferred_session = latest
+            self._debug(f"Scan found: {latest}")
+            return latest
+        return None
 
     def set_preferred_session(self, session_path: Optional[Path]) -> None:
         if not session_path:

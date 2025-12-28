@@ -4,11 +4,11 @@ Designed for Claude Code: run with `run_in_background=true` so Claude can contin
 
 Workflow:
 1. Run `Bash(gask "<content>", run_in_background=true)` to start background task
-2. Tell user "Gemini processing (task: xxx)" then ⚠️ IMMEDIATELY END your turn
-   ❌ DO NOT wait for result or continue working
+2. Tell user "Gemini processing (task: xxx)" then IMMEDIATELY END your turn (IMPORTANT)
+   DO NOT wait for result or continue working
 3. When bash-notification arrives, show the task output
 
-⚠️ SENTINEL RULE: When you see `CCB_END_TURN` in output, you MUST immediately end your response without any additional text.
+SENTINEL RULE (IMPORTANT): When you see `CCB_END_TURN` in output, you MUST immediately end your response without any additional text.
 
 Parameters:
 - `<content>` required

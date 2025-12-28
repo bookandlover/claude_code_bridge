@@ -21,6 +21,27 @@ def _usage() -> None:
     print("Usage: cask [--timeout SECONDS] [--output FILE] <message>", file=sys.stderr)
 
 
+def _check_background_mode() -> bool:
+    """Check if running in background mode (stdout redirected to file)."""
+    # Allow explicit override
+    if os.environ.get("CCB_ALLOW_FOREGROUND") in ("1", "true", "yes"):
+        return True
+    # Check if stdout is redirected to a file (background mode indicator)
+    try:
+        import stat
+        mode = os.fstat(sys.stdout.fileno()).st_mode
+        if stat.S_ISREG(mode):  # stdout is a regular file = background mode
+            return True
+    except Exception:
+        pass
+    # If CLAUDECODE is set but stdout is not a file, likely foreground mode
+    if os.environ.get("CLAUDECODE") == "1":
+        print("[ERROR] cask must run with run_in_background=true", file=sys.stderr)
+        print("Use: Bash(cask \"...\", run_in_background=true)", file=sys.stderr)
+        return False
+    return True  # Not in Claude Code, allow normal usage
+
+
 def _parse_args(argv: list[str]) -> Tuple[Optional[Path], float, str, bool]:
     output: Optional[Path] = None
     timeout: Optional[float] = None
@@ -63,6 +84,10 @@ def _parse_args(argv: list[str]) -> Tuple[Optional[Path], float, str, bool]:
 def main(argv: list[str]) -> int:
     if len(argv) <= 1:
         _usage()
+        return 1
+
+    # Check background mode before doing anything
+    if not _check_background_mode():
         return 1
 
     try:
