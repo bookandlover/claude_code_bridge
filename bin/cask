@@ -81,6 +81,8 @@ def main(argv: list[str]) -> int:
             raise RuntimeError(f"❌ Session error: {status}")
 
         _, state = comm._send_message(message)
+        print("✅ Message sent to Codex", file=sys.stderr)
+        print("⚠️ CCB_END_TURN", file=sys.stderr)
         reply, _ = comm.log_reader.wait_for_message(state, timeout)
         if not reply:
             if not quiet:
