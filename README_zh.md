@@ -37,13 +37,26 @@
 **第二步：** 根据你的环境选择安装脚本：
 
 <details>
-<summary><b>Linux / macOS</b></summary>
+<summary><b>Linux</b></summary>
 
 ```bash
 git clone https://github.com/bfly123/claude_code_bridge.git
 cd claude_code_bridge
 ./install.sh install
 ```
+
+</details>
+
+<details>
+<summary><b>macOS</b></summary>
+
+```bash
+git clone https://github.com/bfly123/claude_code_bridge.git
+cd claude_code_bridge
+./install.sh install
+```
+
+> **注意：** 如果安装后找不到命令，请参考 [macOS 故障排除](#-macos-安装指南)。
 
 </details>
 
@@ -191,6 +204,50 @@ cping
   - `ccb` 在 WezTerm 模式下需要调用 `wezterm cli list` 等命令；如果 `wezterm` 不在 PATH，或 WSL 里找不到 `wezterm.exe`，会导致检测失败（可重开终端或按提示配置 `CODEX_WEZTERM_BIN`）。
 - **PATH/终端未刷新**
   - 安装后请重启终端（WezTerm），再运行 `ccb`/`cping`。
+
+---
+
+## 🍎 macOS 安装指南
+
+### 安装后找不到命令
+
+如果运行 `./install.sh install` 后找不到 `ccb`、`cask`、`cping` 等命令：
+
+**原因：** 安装目录 (`~/.local/bin`) 不在 PATH 中。
+
+**解决方法：**
+
+```bash
+# 1. 检查安装目录是否存在
+ls -la ~/.local/bin/
+
+# 2. 检查 PATH 是否包含该目录
+echo $PATH | tr ':' '\n' | grep local
+
+# 3. 检查 shell 配置（macOS 默认使用 zsh）
+cat ~/.zshrc | grep local
+
+# 4. 如果没有配置，手动添加
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+
+# 5. 重新加载配置
+source ~/.zshrc
+```
+
+### WezTerm 中找不到命令
+
+如果普通 Terminal 能找到命令，但 WezTerm 找不到：
+
+- WezTerm 可能使用不同的 shell 配置文件
+- 同时添加 PATH 到 `~/.zprofile`：
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile
+```
+
+然后完全重启 WezTerm（Cmd+Q 退出后重新打开）。
+
+---
 
 ## 🗣️ 使用场景
 

@@ -39,13 +39,26 @@
 **Step 2:** Choose installer based on your environment:
 
 <details open>
-<summary><b>Linux / macOS</b></summary>
+<summary><b>Linux</b></summary>
 
 ```bash
 git clone https://github.com/bfly123/claude_code_bridge.git
 cd claude_code_bridge
 ./install.sh install
 ```
+
+</details>
+
+<details>
+<summary><b>macOS</b></summary>
+
+```bash
+git clone https://github.com/bfly123/claude_code_bridge.git
+cd claude_code_bridge
+./install.sh install
+```
+
+> **Note:** If commands not found after install, see [macOS Troubleshooting](#-macos-installation-guide).
 
 </details>
 
