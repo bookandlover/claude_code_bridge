@@ -1332,6 +1332,36 @@ def _get_remote_version_info() -> dict | None:
     return None
 
 
+def _detect_cca() -> tuple[str | None, str | None]:
+    """Detect CCA installation. Returns (cca_path, install_dir)"""
+    cca_path = shutil.which("cca")
+    if cca_path:
+        install_dir = Path(cca_path).resolve().parent
+        return cca_path, str(install_dir)
+    candidates = [
+        Path.home() / ".local/share/claude_code_autoflow",
+        Path.home() / ".local/bin/cca",
+    ]
+    for p in candidates:
+        if p.exists():
+            return str(p), str(p.parent if p.is_file() else p)
+    return None, None
+
+
+def _get_cca_version(cca_path: str) -> str | None:
+    """Get CCA version by running cca -v"""
+    try:
+        result = subprocess.run(
+            [cca_path, "-v"], capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip().split('\n')[0]
+    except Exception:
+        pass
+    return None
+
+
 def cmd_version(args):
     """Show version info and check for updates"""
     script_root = Path(__file__).resolve().parent
@@ -1361,11 +1391,75 @@ def cmd_version(args):
     else:
         print("⚠️  Unable to compare versions")
 
+    # CCA info
+    print()
+    cca_path, cca_dir = _detect_cca()
+    if cca_path:
+        cca_ver = _get_cca_version(cca_path)
+        print(f"cca (Claude Code Autoflow) {cca_ver or 'unknown'}")
+        print(f"Install path: {cca_dir}")
+    else:
+        print("cca (Claude Code Autoflow) not installed")
+        print("  Install: ccb update cca")
+        print("  Tip: CCA significantly enhances workflow automation")
+
     return 0
+
+
+def _update_cca(silent: bool = False) -> int:
+    """Install or update CCA"""
+    import urllib.request
+    import tarfile
+    import tempfile
+
+    cca_repo = "https://github.com/bfly123/claude_code_autoflow"
+    cca_path, cca_dir = _detect_cca()
+
+    # Try git pull if .git exists
+    if cca_dir and Path(cca_dir).exists() and (Path(cca_dir) / ".git").exists():
+        if not silent:
+            print("🔄 Updating CCA via git pull...")
+        result = subprocess.run(
+            ["git", "-C", cca_dir, "pull", "--ff-only"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
+        if result.returncode == 0:
+            print("✅ CCA updated successfully")
+            return 0
+
+    # Fresh install via tarball
+    if not silent:
+        print("📦 Installing CCA from GitHub...")
+    install_dir = Path.home() / ".local/share/claude_code_autoflow"
+    tarball_url = f"{cca_repo}/archive/refs/heads/main.tar.gz"
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tarball = Path(tmpdir) / "cca.tar.gz"
+            urllib.request.urlretrieve(tarball_url, tarball)
+            with tarfile.open(tarball, "r:gz") as tf:
+                tf.extractall(tmpdir)
+            extracted = Path(tmpdir) / "claude_code_autoflow-main"
+            if install_dir.exists():
+                shutil.rmtree(install_dir)
+            shutil.copytree(extracted, install_dir)
+            install_script = install_dir / "install.sh"
+            if install_script.exists():
+                subprocess.run(["bash", str(install_script), "install"], cwd=install_dir)
+        print("✅ CCA installed successfully")
+        print(f"   Path: {install_dir}")
+        return 0
+    except Exception as e:
+        print(f"❌ CCA install failed: {e}")
+        return 1
 
 
 def cmd_update(args):
     """Update ccb to latest version"""
+    # Handle "ccb update cca" subcommand
+    if hasattr(args, 'target') and args.target == 'cca':
+        return _update_cca()
+
     import urllib.request
     import tarfile
     import tempfile
@@ -1402,6 +1496,15 @@ def cmd_update(args):
                 print(f"✅ Updated: {old_str} → {new_str}")
             else:
                 print(f"✅ Already up to date: {new_str}")
+            # CCA update/suggest
+            cca_path, _ = _detect_cca()
+            if cca_path:
+                print("\n🔄 Updating CCA...")
+                _update_cca(silent=False)
+            else:
+                print("\n💡 CCA (Claude Code Autoflow) not installed")
+                print("   Install: ccb update cca")
+                print("   Tip: Significantly enhances workflow automation")
             return 0
         else:
             print(f"⚠️ Git pull failed: {result.stderr.strip()}")
@@ -1527,6 +1630,15 @@ def cmd_update(args):
             print(f"✅ Updated: {old_str} → {new_str}")
         else:
             print(f"✅ Already up to date: {new_str}")
+        # CCA update/suggest
+        cca_path, _ = _detect_cca()
+        if cca_path:
+            print("\n🔄 Updating CCA...")
+            _update_cca(silent=False)
+        else:
+            print("\n💡 CCA (Claude Code Autoflow) not installed")
+            print("   Install: ccb update cca")
+            print("   Tip: Significantly enhances workflow automation")
         return 0
 
     except Exception as e:
@@ -1562,7 +1674,9 @@ def main():
     restore_parser.add_argument("providers", nargs="*", default=[], help="Backends to restore (codex/gemini)")
 
     # update subcommand
-    subparsers.add_parser("update", help="Update to latest version")
+    update_parser = subparsers.add_parser("update", help="Update to latest version")
+    update_parser.add_argument("target", nargs="?", choices=["cca"],
+                               help="Optional: 'cca' to install/update CCA only")
 
     # version subcommand
     subparsers.add_parser("version", help="Show version and check for updates")
