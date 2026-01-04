@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import sys
 import time
@@ -103,8 +104,18 @@ def compute_opencode_project_id(work_dir: Path) -> str:
 
 
 def _normalize_path_for_match(value: str) -> str:
+    s = (value or "").strip()
+    if os.name == "nt":
+        # MSYS/Git-Bash style: /c/Users/... -> c:/Users/...
+        if len(s) >= 4 and s[0] == "/" and s[2] == "/" and s[1].isalpha():
+            s = f"{s[1].lower()}:/{s[3:]}"
+        # WSL-style path string seen on Windows occasionally: /mnt/c/... -> c:/...
+        m = re.match(r"^/mnt/([A-Za-z])/(.*)$", s)
+        if m:
+            s = f"{m.group(1).lower()}:/{m.group(2)}"
+
     try:
-        path = Path(value).expanduser()
+        path = Path(s).expanduser()
         # OpenCode "directory" seems to come from the launch cwd, so avoid resolve() to prevent
         # symlink/WSL mismatch (similar rationale to gemini hashing).
         normalized = str(path.absolute())
@@ -227,6 +238,9 @@ class OpenCodeLogReader:
             detected = self._detect_project_id_for_workdir()
             if detected:
                 self.project_id = detected
+            else:
+                # Fallback for older storage layouts or path-matching issues.
+                self.project_id = compute_opencode_project_id(self.work_dir)
 
         try:
             poll = float(os.environ.get("OPENCODE_POLL_INTERVAL", "0.05"))
