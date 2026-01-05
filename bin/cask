@@ -18,7 +18,7 @@ sys.path.insert(0, str(lib_dir))
 from compat import setup_windows_encoding
 setup_windows_encoding()
 
-COMPLETION_MARKER = (os.environ.get("CCB_EXECUTION_COMPLETE_MARKER") or "--- EXECUTION COMPLETE ---").strip() or "--- EXECUTION COMPLETE ---"
+COMPLETION_MARKER = (os.environ.get("CCB_EXECUTION_COMPLETE_MARKER") or "[EXECUTION_COMPLETE]").strip() or "[EXECUTION_COMPLETE]"
 
 import time
 

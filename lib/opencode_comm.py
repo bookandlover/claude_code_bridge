@@ -564,7 +564,7 @@ class OpenCodeLogReader:
             # If the message already contains a completion marker, treat it as complete.
             parts = self._read_parts(str(latest_id))
             text = self._extract_text(parts, allow_reasoning_fallback=False)
-            completion_marker = (os.environ.get("CCB_EXECUTION_COMPLETE_MARKER") or "--- EXECUTION COMPLETE ---").strip() or "--- EXECUTION COMPLETE ---"
+            completion_marker = (os.environ.get("CCB_EXECUTION_COMPLETE_MARKER") or "[EXECUTION_COMPLETE]").strip() or "[EXECUTION_COMPLETE]"
             if text and completion_marker in text:
                 completed_i = int(time.time() * 1000)
             else:
