@@ -22,6 +22,15 @@
 
 <img src="assets/demo.webp" alt="双窗口协作演示" width="900">
 
+<details>
+<summary><b>演示 (GIF)</b></summary>
+<br>
+
+<img src="assets/readme_previews/video1.gif" alt="演示 GIF 1" width="900">
+
+<img src="assets/readme_previews/video2.gif" alt="演示 GIF 2" width="900">
+</details>
+
 </div>
 
 ---

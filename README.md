@@ -25,6 +25,15 @@
 
 <img src="assets/demo.webp" alt="Split-pane collaboration demo" width="900">
 
+<details>
+<summary><b>Demo (GIF)</b></summary>
+<br>
+
+<img src="assets/readme_previews/video1.gif" alt="Demo GIF 1" width="900">
+
+<img src="assets/readme_previews/video2.gif" alt="Demo GIF 2" width="900">
+</details>
+
 </div>
 
 ---
