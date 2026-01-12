@@ -1066,8 +1066,9 @@ with open('$tmux_conf', 'w', encoding='utf-8') as f:
   } >> "$tmux_conf"
 
   echo "Updated tmux configuration: $tmux_conf"
-  echo "   - CCB status bar integration (shows AI daemon status)"
-  echo "   - Quick navigation: prefix + c/x/g/o to jump to AI panes"
+  echo "   - CCB tmux integration (copy mode, mouse, pane management)"
+  echo "   - CCB theme is enabled only while CCB is running (auto restore on exit)"
+  echo "   - Manual theme toggle: prefix + C (on), prefix + V (off)"
   echo "   - Vi-style pane management with h/j/k/l"
   echo "   - Mouse support and better copy mode"
   echo "   - Run 'tmux source ~/.tmux.conf' to apply (or restart tmux)"
@@ -1077,6 +1078,8 @@ uninstall_tmux_config() {
   local tmux_conf="$HOME/.tmux.conf"
   local status_script="$HOME/.local/bin/ccb-status.sh"
   local border_script="$HOME/.local/bin/ccb-border.sh"
+  local tmux_on_script="$HOME/.local/bin/ccb-tmux-on.sh"
+  local tmux_off_script="$HOME/.local/bin/ccb-tmux-off.sh"
 
   # Remove ccb-status.sh script
   if [[ -f "$status_script" ]]; then
@@ -1088,6 +1091,16 @@ uninstall_tmux_config() {
   if [[ -f "$border_script" ]]; then
     rm -f "$border_script"
     echo "Removed: $border_script"
+  fi
+
+  # Remove tmux UI toggle scripts
+  if [[ -f "$tmux_on_script" ]]; then
+    rm -f "$tmux_on_script"
+    echo "Removed: $tmux_on_script"
+  fi
+  if [[ -f "$tmux_off_script" ]]; then
+    rm -f "$tmux_off_script"
+    echo "Removed: $tmux_off_script"
   fi
 
   if [[ ! -f "$tmux_conf" ]]; then

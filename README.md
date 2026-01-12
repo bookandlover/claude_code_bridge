@@ -42,6 +42,16 @@
 
 ---
 
+<h2 align="center">🚀 What's New in v4.0</h2>
+
+> **Rebuilt for tmux-first, terminal-agnostic workflows**
+
+- **Full Refactor**: Cleaner architecture and more predictable behavior across environments.
+- **Perfect tmux Support**: Stable splits, pane labels, borders, and session-scoped theming that restores on exit.
+- **Works in Any Terminal**: If your terminal can run tmux, CCB can provide the full multi-model split experience (except native Windows, where tmux is still recommended via WSL/WezTerm).
+
+---
+
 <h2 align="center">🚀 What's New in v3.0</h2>
 
 > **The Ultimate Bridge for Cross-AI Collaboration**
