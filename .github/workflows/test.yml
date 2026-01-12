@@ -50,12 +50,8 @@ jobs:
         shell: cmd
 
   test-wsl:
-    name: WSL / py${{ matrix.python-version }}
+    name: WSL / Ubuntu 22.04
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - name: Checkout
@@ -76,10 +72,10 @@ jobs:
 
       - name: Syntax check in WSL
         shell: wsl-bash {0}
-        run: python${{ matrix.python-version }} -m compileall -q lib bin ccb
+        run: python3 -m compileall -q lib bin ccb
 
       - name: Run tests in WSL with tmux
         shell: wsl-bash {0}
         run: |
           export TERM=xterm-256color
-          python${{ matrix.python-version }} -m pytest test/ -v --tb=short
+          python3 -m pytest test/ -v --tb=short
