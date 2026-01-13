@@ -27,6 +27,7 @@ from env_utils import env_bool
 from askd_client import (
     state_file_from_env,
     find_project_session_file,
+    resolve_work_dir,
     try_daemon_request,
     maybe_start_daemon,
     wait_for_daemon_ready,
@@ -75,13 +76,14 @@ def _get_executor_from_roles() -> Optional[str]:
 
 
 def _usage() -> None:
-    print("Usage: cask [--timeout SECONDS] [--output FILE] <message>", file=sys.stderr)
+    print("Usage: cask [--session-file FILE] [--timeout SECONDS] [--output FILE] <message>", file=sys.stderr)
 
 
-def _parse_args(argv: list[str]) -> Tuple[Optional[Path], float, str, bool]:
+def _parse_args(argv: list[str]) -> Tuple[Optional[Path], float, str, bool, Optional[str]]:
     output: Optional[Path] = None
     timeout: Optional[float] = None
     quiet = False
+    session_file: Optional[str] = None
     parts: list[str] = []
 
     it = iter(argv[1:])
@@ -91,6 +93,12 @@ def _parse_args(argv: list[str]) -> Tuple[Optional[Path], float, str, bool]:
             raise SystemExit(0)
         if token in ("-q", "--quiet"):
             quiet = True
+            continue
+        if token == "--session-file":
+            try:
+                session_file = next(it)
+            except StopIteration:
+                raise ValueError("--session-file requires a file path")
             continue
         if token in ("-o", "--output"):
             try:
@@ -114,12 +122,12 @@ def _parse_args(argv: list[str]) -> Tuple[Optional[Path], float, str, bool]:
             timeout = float(os.environ.get("CCB_SYNC_TIMEOUT", "3600.0"))
         except Exception:
             timeout = 3600.0
-    return output, timeout, message, quiet
+    return output, timeout, message, quiet, session_file
 
 
 def main(argv: list[str]) -> int:
     try:
-        output_path, timeout, message, quiet = _parse_args(argv)
+        output_path, timeout, message, quiet, session_file = _parse_args(argv)
         if not message and not sys.stdin.isatty():
             message = read_stdin_text().strip()
         if not message:
@@ -137,12 +145,18 @@ def main(argv: list[str]) -> int:
         if executor == "codex+opencode":
             message = SUPERVISOR_PROMPT + message
 
+        work_dir, _ = resolve_work_dir(
+            CASK_CLIENT_SPEC,
+            cli_session_file=session_file,
+            env_session_file=os.environ.get("CCB_SESSION_FILE"),
+        )
+
         # Daemon-only: remove client-side serial lock mode.
         state_file = state_file_from_env(CASK_CLIENT_SPEC.state_file_env)
-        daemon_result = try_daemon_request(CASK_CLIENT_SPEC, Path.cwd(), message, timeout, quiet, state_file)
-        if daemon_result is None and maybe_start_daemon(CASK_CLIENT_SPEC, Path.cwd()):
+        daemon_result = try_daemon_request(CASK_CLIENT_SPEC, work_dir, message, timeout, quiet, state_file)
+        if daemon_result is None and maybe_start_daemon(CASK_CLIENT_SPEC, work_dir):
             wait_for_daemon_ready(CASK_CLIENT_SPEC, timeout_s=min(2.0, max(0.2, float(timeout))), state_file=state_file)
-            daemon_result = try_daemon_request(CASK_CLIENT_SPEC, Path.cwd(), message, timeout, quiet, state_file)
+            daemon_result = try_daemon_request(CASK_CLIENT_SPEC, work_dir, message, timeout, quiet, state_file)
         if daemon_result is not None:
             reply, exit_code = daemon_result
             if output_path:
@@ -156,7 +170,7 @@ def main(argv: list[str]) -> int:
         if not env_bool(CASK_CLIENT_SPEC.enabled_env, True):
             print(f"[ERROR] {CASK_CLIENT_SPEC.enabled_env}=0: cask daemon mode disabled.", file=sys.stderr)
             return EXIT_ERROR
-        if not find_project_session_file(Path.cwd(), CASK_CLIENT_SPEC.session_filename):
+        if not find_project_session_file(work_dir, CASK_CLIENT_SPEC.session_filename):
             print("[ERROR] No active Codex session found for this directory.", file=sys.stderr)
             print("Run `ccb up codex` in this project first.", file=sys.stderr)
             return EXIT_ERROR
