@@ -554,10 +554,10 @@ ensure_path_configured() {
     *)    shell_rc="$HOME/.profile" ;;
   esac
 
-  local path_line="export PATH=\"\$HOME/.local/bin:\$PATH\""
+  local path_line="export PATH=\"${BIN_DIR}:\$PATH\""
 
   # Check if already configured in shell rc
-  if [[ -f "$shell_rc" ]] && grep -qF '.local/bin' "$shell_rc" 2>/dev/null; then
+  if [[ -f "$shell_rc" ]] && grep -qF "$BIN_DIR" "$shell_rc" 2>/dev/null; then
     echo "PATH already configured in $shell_rc (restart terminal to apply)"
     return
   fi
@@ -888,15 +888,16 @@ install_tmux_config() {
   local tmux_conf="$HOME/.tmux.conf"
   local ccb_tmux_conf="$REPO_ROOT/config/tmux-ccb.conf"
   local ccb_status_script="$REPO_ROOT/config/ccb-status.sh"
-  local status_install_path="$HOME/.local/bin/ccb-status.sh"
+  local status_install_path="$BIN_DIR/ccb-status.sh"
 
   if [[ ! -f "$ccb_tmux_conf" ]]; then
     return
   fi
 
+  mkdir -p "$BIN_DIR"
+
   # Install ccb-status.sh script
   if [[ -f "$ccb_status_script" ]]; then
-    mkdir -p "$HOME/.local/bin"
     cp "$ccb_status_script" "$status_install_path"
     chmod +x "$status_install_path"
     echo "Installed: $status_install_path"
@@ -904,7 +905,7 @@ install_tmux_config() {
 
   # Install ccb-border.sh script (dynamic pane border colors)
   local ccb_border_script="$REPO_ROOT/config/ccb-border.sh"
-  local border_install_path="$HOME/.local/bin/ccb-border.sh"
+  local border_install_path="$BIN_DIR/ccb-border.sh"
   if [[ -f "$ccb_border_script" ]]; then
     cp "$ccb_border_script" "$border_install_path"
     chmod +x "$border_install_path"
@@ -915,14 +916,14 @@ install_tmux_config() {
   local ccb_tmux_on_script="$REPO_ROOT/config/ccb-tmux-on.sh"
   local ccb_tmux_off_script="$REPO_ROOT/config/ccb-tmux-off.sh"
   if [[ -f "$ccb_tmux_on_script" ]]; then
-    cp "$ccb_tmux_on_script" "$HOME/.local/bin/ccb-tmux-on.sh"
-    chmod +x "$HOME/.local/bin/ccb-tmux-on.sh"
-    echo "Installed: $HOME/.local/bin/ccb-tmux-on.sh"
+    cp "$ccb_tmux_on_script" "$BIN_DIR/ccb-tmux-on.sh"
+    chmod +x "$BIN_DIR/ccb-tmux-on.sh"
+    echo "Installed: $BIN_DIR/ccb-tmux-on.sh"
   fi
   if [[ -f "$ccb_tmux_off_script" ]]; then
-    cp "$ccb_tmux_off_script" "$HOME/.local/bin/ccb-tmux-off.sh"
-    chmod +x "$HOME/.local/bin/ccb-tmux-off.sh"
-    echo "Installed: $HOME/.local/bin/ccb-tmux-off.sh"
+    cp "$ccb_tmux_off_script" "$BIN_DIR/ccb-tmux-off.sh"
+    chmod +x "$BIN_DIR/ccb-tmux-off.sh"
+    echo "Installed: $BIN_DIR/ccb-tmux-off.sh"
   fi
 
   # Check if already configured (new or legacy marker)
@@ -958,10 +959,22 @@ with open('$tmux_conf', 'w', encoding='utf-8') as f:
     fi
   fi
 
-  # Append CCB tmux config
+  # Append CCB tmux config (fill in BIN_DIR placeholders)
   {
     echo ""
-    cat "$ccb_tmux_conf"
+    if pick_any_python_bin; then
+      "$PYTHON_BIN" -c "
+import sys
+
+path = '$ccb_tmux_conf'
+bin_dir = '$BIN_DIR'
+with open(path, 'r', encoding='utf-8') as f:
+    content = f.read()
+sys.stdout.write(content.replace('@CCB_BIN_DIR@', bin_dir))
+" 2>/dev/null || cat "$ccb_tmux_conf"
+    else
+      cat "$ccb_tmux_conf"
+    fi
   } >> "$tmux_conf"
 
   echo "Updated tmux configuration: $tmux_conf"
@@ -975,10 +988,10 @@ with open('$tmux_conf', 'w', encoding='utf-8') as f:
 
 uninstall_tmux_config() {
   local tmux_conf="$HOME/.tmux.conf"
-  local status_script="$HOME/.local/bin/ccb-status.sh"
-  local border_script="$HOME/.local/bin/ccb-border.sh"
-  local tmux_on_script="$HOME/.local/bin/ccb-tmux-on.sh"
-  local tmux_off_script="$HOME/.local/bin/ccb-tmux-off.sh"
+  local status_script="$BIN_DIR/ccb-status.sh"
+  local border_script="$BIN_DIR/ccb-border.sh"
+  local tmux_on_script="$BIN_DIR/ccb-tmux-on.sh"
+  local tmux_off_script="$BIN_DIR/ccb-tmux-off.sh"
 
   # Remove ccb-status.sh script
   if [[ -f "$status_script" ]]; then
