@@ -19,13 +19,19 @@ DO NOT use when the user asks questions *about* the tool itself.
 
 ## Execution (MANDATORY)
 
-Always run in background and pass the user request via a single-quoted HEREDOC (prevents shell backtick/`$()` expansion):
+Always run in background. For arbitrary text (quotes, backticks, multiline), prefer passing the user request via a single-quoted HEREDOC (prevents shell backtick/`$()` expansion):
 
 ```bash
 Bash(<cask|gask|oask> <<'EOF'
 <user request, verbatim>
 EOF
 , run_in_background=true)
+```
+
+For short 1-liners, passing as a quoted argument is OK, but be careful with quotes/backticks:
+
+```bash
+Bash(<cask|gask|oask> "one line request", run_in_background=true)
 ```
 
 ## Workflow (IMPORTANT)
@@ -47,8 +53,8 @@ If Bash fails:
 
 ## Wrong vs Right
 
-- Wrong: `Bash(cask "…")` (may break on backticks; may block)
-- Right: `Bash(cask <<'EOF' … EOF, run_in_background=true)` then end turn
+- Risky: `Bash(cask "…")` (may break on quotes/backticks; keep it simple)
+- Preferred: `Bash(cask <<'EOF' … EOF, run_in_background=true)` then end turn
 
 ## Parameters
 
@@ -56,4 +62,3 @@ Supported by `cask/gask/oask`:
 - `--timeout SECONDS` (default 3600)
 - `--output FILE` (write reply to FILE)
 - `-q/--quiet` (reduce stderr noise; timeout still returns non-zero)
-

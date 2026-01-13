@@ -600,6 +600,13 @@ install_claude_skills() {
     cp -r "$skill_dir" "$skills_dst/$skill_name"
     echo "  Installed skill: $skill_name"
   done
+
+  # Shared docs live at skills/docs but are not a "skill directory". Install them as well.
+  if [[ -d "$skills_src/docs" ]]; then
+    rm -rf "$skills_dst/docs"
+    cp -r "$skills_src/docs" "$skills_dst/docs"
+    echo "  Installed skills docs: docs/"
+  fi
   echo "Updated Claude skills directory: $skills_dst"
 }
 

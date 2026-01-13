@@ -1,23 +1,27 @@
 ---
 name: gask
-description: Async via gask, end turn immediately; use only when user explicitly delegates to Gemini (ask/@gemini/let gemini/review); NOT for questions about Gemini itself.
+description: Asynchronously send a task to Gemini via the `gask` CLI. Use only when the user explicitly delegates to Gemini (ask/@gemini/let gemini/review); not for questions about Gemini itself.
+metadata:
+  short-description: Ask Gemini asynchronously via gask
+  backend: gemini
 ---
 
-# Ask Gemini (Async)
+# gask (Ask Gemini)
 
-Send the user's request to Gemini asynchronously.
+Use `gask` to forward the user's request to the Gemini pane started by `ccb up gemini`.
 
-## Execution (MANDATORY)
+## Prereqs (Backend)
 
-```
-Bash(gask <<'EOF'
-$ARGUMENTS
-EOF
-, run_in_background=true)
-```
+- `gping` should succeed; otherwise start it with `ccb up gemini`.
+- `gask` must run in the same environment as `ccb` (WSL vs native Windows).
 
-## CRITICAL Rules
+## Quick Start
 
-- Always use `run_in_background=true`.
-- After running `gask`, say "Gemini processing (task: xxx)" and immediately end your turn.
-- Do not wait for results or check status in the same turn.
+- Preferred (works best on Windows too): `gask "$ARGUMENTS"`
+- Multiline (optional): `gask <<'EOF'` … `EOF`
+
+## Workflow (Mandatory)
+
+1. Ensure Gemini backend is up (`gping`, or run `ccb up gemini`).
+2. Run `gask` with the user's request.
+3. Reply with a short handoff (e.g. “Gemini processing: …”) and end the turn; do not poll for results in the same turn.
