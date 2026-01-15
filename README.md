@@ -397,6 +397,7 @@ Once started, collaborate naturally. Claude will detect when to delegate tasks.
 ### v4.0.7
 - **Tmux Status Bar Redesign**: Dual-line status bar with modern dot indicators (●/○), git branch, CCA status, and CCB version display
 - **Session Freshness**: Always scan logs for latest session instead of using cached session file
+- **Simplified Auto Mode**: Removed CCA detection logic from `ccb up -a`, now purely uses `--dangerously-skip-permissions`
 
 ### v4.0.6
 - **Session Overrides**: `cping/gping/oping/cpend/opend` support `--session-file` / `CCB_SESSION_FILE` to bypass wrong `cwd`
