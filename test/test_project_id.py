@@ -36,12 +36,7 @@ def test_compute_ccb_project_id_stable_for_same_dir(tmp_path: Path) -> None:
     assert pid1 == pid2
 
 
-def test_compute_ccb_project_id_different_for_subdirs(tmp_path: Path) -> None:
-    """
-    Since we no longer search upward for .ccb_config anchors,
-    subdirectories have different project_ids than their parents.
-    This is acceptable because cask/gask/oask are always invoked from the project root.
-    """
+def test_compute_ccb_project_id_uses_anchor_root(tmp_path: Path) -> None:
     (tmp_path / ".ccb_config").mkdir(parents=True, exist_ok=True)
     subdir = tmp_path / "a" / "b"
     subdir.mkdir(parents=True, exist_ok=True)
@@ -50,7 +45,7 @@ def test_compute_ccb_project_id_different_for_subdirs(tmp_path: Path) -> None:
     pid_sub = compute_ccb_project_id(subdir)
     assert pid_root
     assert pid_sub
-    assert pid_root != pid_sub  # Different directories = different project_ids
+    assert pid_root == pid_sub
 
 
 def test_compute_ccb_project_id_respects_env_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -68,3 +63,9 @@ def test_compute_ccb_project_id_respects_env_root(tmp_path: Path, monkeypatch: p
     # Invalid env root should not crash.
     monkeypatch.setenv("CCB_PROJECT_ROOT", str(tmp_path / "does-not-exist"))
     assert compute_ccb_project_id(child)
+
+
+def test_compute_ccb_project_id_fallback_diff_for_subdirs_without_anchor(tmp_path: Path) -> None:
+    subdir = tmp_path / "a" / "b"
+    subdir.mkdir(parents=True, exist_ok=True)
+    assert compute_ccb_project_id(tmp_path) != compute_ccb_project_id(subdir)

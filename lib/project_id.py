@@ -77,16 +77,34 @@ def normalize_work_dir(value: str | Path) -> str:
     return s
 
 
+def _find_ccb_config_root(start_dir: Path) -> Path | None:
+    """
+    Find the nearest ancestor directory that contains a `.ccb_config/` directory.
+
+    This is CCB's project root anchor and is used to make project_id stable across subdirectories.
+    """
+    try:
+        current = Path(start_dir).expanduser().absolute()
+    except Exception:
+        current = Path.cwd()
+    for candidate in [current, *current.parents]:
+        try:
+            cfg = candidate / ".ccb_config"
+            if cfg.is_dir():
+                return candidate
+        except Exception:
+            continue
+    return None
+
+
 def compute_ccb_project_id(work_dir: Path) -> str:
     """
     Compute CCB's routing project id (ccb_project_id).
 
     Priority:
     - `CCB_PROJECT_ROOT` env var (explicit project root).
-    - Current work_dir (no upward search).
-
-    Since cask/gask/oask are always invoked from the project root (by Claude/Codex),
-    there is no need to search for `.ccb_config/` anchors in parent directories.
+    - Nearest ancestor directory containing `.ccb_config/` (project anchor).
+    - Current work_dir (fallback).
     """
     try:
         wd = Path(work_dir).expanduser().absolute()
@@ -101,12 +119,15 @@ def compute_ccb_project_id(work_dir: Path) -> str:
             if root.exists() and root.is_dir():
                 base = root.absolute()
             else:
-                base = wd
+                base = None
         except Exception:
-            base = wd
+            base = None
     else:
-        # Priority 2: Use current work_dir directly
-        base = wd
+        base = None
+
+    # Priority 2: Nearest `.ccb_config/` ancestor
+    if base is None:
+        base = _find_ccb_config_root(wd) or wd
 
     norm = normalize_work_dir(base)
     if not norm:
