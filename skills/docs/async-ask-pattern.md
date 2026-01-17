@@ -19,13 +19,23 @@ DO NOT use when the user asks questions *about* the tool itself.
 
 ## Execution (MANDATORY)
 
-Always run in background. For arbitrary text (quotes, backticks, multiline), prefer passing the user request via a single-quoted HEREDOC (prevents shell backtick/`$()` expansion):
+Always run in background. For arbitrary text (quotes, backticks, multiline), prefer a multiline-safe form:
+
+Linux/macOS/WSL (bash heredoc; prevents shell backtick/`$()` expansion):
 
 ```bash
 Bash(<cask|gask|oask> <<'EOF'
 <user request, verbatim>
 EOF
 , run_in_background=true)
+```
+
+Windows (PowerShell here-string):
+
+```powershell
+Bash(@"
+<user request, verbatim>
+"@ | <cask|gask|oask>, run_in_background=true)
 ```
 
 For short 1-liners, passing as a quoted argument is OK, but be careful with quotes/backticks:
@@ -54,7 +64,8 @@ If Bash fails:
 ## Wrong vs Right
 
 - Risky: `Bash(cask "…")` (may break on quotes/backticks; keep it simple)
-- Preferred: `Bash(cask <<'EOF' … EOF, run_in_background=true)` then end turn
+- Preferred (bash): `Bash(cask <<'EOF' … EOF, run_in_background=true)` then end turn
+- Preferred (PowerShell): `Bash(@" … "@ | cask, run_in_background=true)` then end turn
 
 ## Parameters
 

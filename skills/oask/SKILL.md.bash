@@ -3,6 +3,8 @@ name: oask
 description: Async via oask, end turn immediately; use only when user explicitly delegates to OpenCode (ask/@opencode/let opencode/review); NOT for questions about OpenCode itself.
 metadata:
   short-description: Ask OpenCode asynchronously via oask
+  managed-by: ccb-installer
+  template-variant: bash
 ---
 
 # Ask OpenCode (Async)

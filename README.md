@@ -192,6 +192,9 @@ cd claude_code_bridge
 powershell -ExecutionPolicy Bypass -File .\install.ps1 install
 ```
 
+- The installer prefers `pwsh.exe` (PowerShell 7+) when available, otherwise `powershell.exe`.
+- If a WezTerm config exists, the installer will try to set `config.default_prog` to PowerShell (adds a `-- CCB_WEZTERM_*` block and will prompt before overriding an existing `default_prog`).
+
 </details>
 
 ### Run
@@ -225,6 +228,10 @@ ccb update              # Update ccb to the latest version
 ## 🪟 Windows Installation Guide (WSL vs Native)
 
 > **Key Point:** `ccb/cask/cping/cpend` must run in the **same environment** as `codex/gemini`. The most common issue is environment mismatch causing `cping` to fail.
+
+Note: The installers also install OS-specific `SKILL.md` variants for Claude/Codex skills:
+- Linux/macOS/WSL: bash heredoc templates (`SKILL.md.bash`)
+- Native Windows: PowerShell here-string templates (`SKILL.md.powershell`)
 
 ### 1) Prerequisites: Install Native WezTerm
 

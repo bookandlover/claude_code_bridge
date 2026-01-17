@@ -3,6 +3,8 @@ name: oask
 description: Async via oask, end turn immediately; use only when user explicitly delegates to OpenCode (ask/@opencode/let opencode/review); NOT for questions about OpenCode itself.
 metadata:
   short-description: Ask OpenCode asynchronously via oask
+  managed-by: ccb-installer
+  template-variant: powershell
 ---
 
 # Ask OpenCode (Async)
@@ -12,10 +14,9 @@ Send the user’s request to OpenCode asynchronously.
 ## Execution (MANDATORY)
 
 ```
-Bash(oask <<'EOF'
+Bash(@"
 $ARGUMENTS
-EOF
-, run_in_background=true)
+"@ | oask, run_in_background=true)
 ```
 
 ## CRITICAL Rules
@@ -27,5 +28,5 @@ EOF
 ## Notes
 
 - If it fails, check backend health with `oping`, or start it with `ccb up opencode`.
-- For short 1-liners you can also do: `Bash(oask "…", run_in_background=true)` (but prefer heredoc for arbitrary text).
-- For a more complete pattern (including heredoc/multiline): `../docs/async-ask-pattern.md`
+- For short 1-liners you can also do: `Bash(oask "…", run_in_background=true)` (but prefer here-string for arbitrary text).
+- For a more complete pattern (including multiline): `../docs/async-ask-pattern.md`

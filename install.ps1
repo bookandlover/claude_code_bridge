@@ -24,6 +24,8 @@ $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 # Constants
 $script:CCB_START_MARKER = "<!-- CCB_CONFIG_START -->"
 $script:CCB_END_MARKER = "<!-- CCB_CONFIG_END -->"
+$script:CCB_WEZTERM_START_MARKER = "-- CCB_WEZTERM_START"
+$script:CCB_WEZTERM_END_MARKER = "-- CCB_WEZTERM_END"
 
 $script:SCRIPTS_TO_LINK = @(
   "ccb",
@@ -326,6 +328,12 @@ function Install-Native {
   Install-CodexSkills
   Install-ClaudeConfig
 
+  try {
+    Set-WezTermDefaultShellToPowerShell
+  } catch {
+    Write-Warning "WezTerm configuration skipped: $_"
+  }
+
   Write-Host ""
   Write-Host "Installation complete!"
   Write-Host "Restart your terminal (WezTerm) for PATH changes to take effect."
@@ -350,14 +358,49 @@ function Install-CodexSkills {
     New-Item -ItemType Directory -Path $skillsDst -Force | Out-Null
   }
 
+  Write-Host "Installing Codex skills (PowerShell SKILL.md templates)..."
   Get-ChildItem -Path $skillsSrc -Directory | ForEach-Object {
     $skillName = $_.Name
-    $skillDst = Join-Path $skillsDst $skillName
-    if (Test-Path $skillDst) {
-      Remove-Item -Recurse -Force $skillDst
+    $srcDir = $_.FullName
+    $dstDir = Join-Path $skillsDst $skillName
+    $dstSkillMd = Join-Path $dstDir "SKILL.md"
+
+    if (-not (Test-Path $dstDir)) {
+      New-Item -ItemType Directory -Path $dstDir -Force | Out-Null
     }
-    Copy-Item -Recurse -Force $_.FullName $skillDst
-    Write-Host "  Installed Codex skill: $skillName"
+
+    $srcSkillMd = Join-Path $srcDir "SKILL.md.powershell"
+    if (-not (Test-Path $srcSkillMd)) {
+      $srcSkillMd = Join-Path $srcDir "SKILL.md"
+    }
+    if (-not (Test-Path $srcSkillMd)) {
+      return
+    }
+
+    $shouldWrite = $false
+    if (-not (Test-Path $dstSkillMd)) {
+      $shouldWrite = $true
+    } else {
+      $dstContent = Get-Content -Raw -Path $dstSkillMd -ErrorAction SilentlyContinue
+      if ($dstContent -match "managed-by:\\s*ccb-installer") {
+        $shouldWrite = $true
+      } else {
+        $legacySkillMd = Join-Path $srcDir "SKILL.md"
+        if (Test-Path $legacySkillMd) {
+          $legacyContent = Get-Content -Raw -Path $legacySkillMd -ErrorAction SilentlyContinue
+          if ($dstContent -eq $legacyContent) {
+            $shouldWrite = $true
+          }
+        }
+      }
+    }
+
+    if ($shouldWrite) {
+      Copy-Item -Force $srcSkillMd $dstSkillMd
+      Write-Host "  Installed Codex skill: $skillName"
+    } else {
+      Write-Host "  Kept existing Codex skill (custom SKILL.md): $skillName"
+    }
   }
   Write-Host "Updated Codex skills directory: $skillsDst"
 }
@@ -389,11 +432,70 @@ function Install-ClaudeConfig {
     if (-not (Test-Path $skillsDir)) {
       New-Item -ItemType Directory -Path $skillsDir -Force | Out-Null
     }
+    Write-Host "Installing Claude skills (PowerShell SKILL.md templates)..."
     Get-ChildItem -Path $srcSkills -Directory | ForEach-Object {
-      $destPath = Join-Path $skillsDir $_.Name
-      if (Test-Path $destPath) { Remove-Item -Recurse -Force $destPath }
-      Copy-Item -Recurse $_.FullName $destPath
-      Write-Host "  Installed skill: $($_.Name)"
+      if ($_.Name -eq "docs") { return }
+
+      $skillName = $_.Name
+      $srcDir = $_.FullName
+      $dstDir = Join-Path $skillsDir $skillName
+      $dstSkillMd = Join-Path $dstDir "SKILL.md"
+
+      if (-not (Test-Path $dstDir)) {
+        New-Item -ItemType Directory -Path $dstDir -Force | Out-Null
+      }
+
+      $srcSkillMd = Join-Path $srcDir "SKILL.md.powershell"
+      if (-not (Test-Path $srcSkillMd)) {
+        $srcSkillMd = Join-Path $srcDir "SKILL.md"
+      }
+      if (-not (Test-Path $srcSkillMd)) {
+        return
+      }
+
+      $shouldWrite = $false
+      if (-not (Test-Path $dstSkillMd)) {
+        $shouldWrite = $true
+      } else {
+        $dstContent = Get-Content -Raw -Path $dstSkillMd -ErrorAction SilentlyContinue
+        if ($dstContent -match "managed-by:\\s*ccb-installer") {
+          $shouldWrite = $true
+        } else {
+          $legacySkillMd = Join-Path $srcDir "SKILL.md"
+          if (Test-Path $legacySkillMd) {
+            $legacyContent = Get-Content -Raw -Path $legacySkillMd -ErrorAction SilentlyContinue
+            if ($dstContent -eq $legacyContent) {
+              $shouldWrite = $true
+            }
+          }
+
+          if (-not $shouldWrite -and $dstContent -match "<<'EOF'") {
+            if ($Yes -or $env:CCB_INSTALL_ASSUME_YES -eq "1") {
+              $shouldWrite = $true
+            } elseif ([Environment]::UserInteractive) {
+              $reply = Read-Host "Skill '$skillName' looks like legacy bash heredoc. Replace with PowerShell here-string? (y/N)"
+              if ($reply.Trim().ToLower() -in @("y", "yes")) {
+                $shouldWrite = $true
+              }
+            }
+          }
+        }
+      }
+
+      if ($shouldWrite) {
+        Copy-Item -Force $srcSkillMd $dstSkillMd
+        Write-Host "  Installed skill: $skillName"
+      } else {
+        Write-Host "  Kept existing skill (custom SKILL.md): $skillName"
+      }
+    }
+
+    $srcDocs = Join-Path $srcSkills "docs"
+    if (Test-Path $srcDocs) {
+      $dstDocs = Join-Path $skillsDir "docs"
+      if (Test-Path $dstDocs) { Remove-Item -Recurse -Force $dstDocs }
+      Copy-Item -Recurse -Force $srcDocs $dstDocs
+      Write-Host "  Installed skills docs: docs/"
     }
   }
 
@@ -504,6 +606,102 @@ Examples:
     $settings.permissions.allow = $currentAllow.ToArray()
     $settings | ConvertTo-Json -Depth 10 | Out-File -Encoding UTF8 -FilePath $settingsJson
     Write-Host "Updated settings.json with permissions"
+  }
+}
+
+function Set-WezTermDefaultShellToPowerShell {
+  $weztermCandidates = @(
+    (Join-Path $env:USERPROFILE ".wezterm.lua"),
+    (Join-Path $env:USERPROFILE ".config\\wezterm\\wezterm.lua")
+  )
+  $weztermConfig = $weztermCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+  if (-not $weztermConfig) {
+    Write-Host "WezTerm config not found; skipping default shell configuration."
+    Write-Host "  Checked:"
+    $weztermCandidates | ForEach-Object { Write-Host "   - $_" }
+    return
+  }
+
+  $pwsh = Get-Command pwsh.exe -ErrorAction SilentlyContinue
+  $powershell = Get-Command powershell.exe -ErrorAction SilentlyContinue
+  if ($pwsh) {
+    $shellExe = "pwsh.exe"
+    $fallbackExe = "powershell.exe"
+  } elseif ($powershell) {
+    $shellExe = "powershell.exe"
+    $fallbackExe = "pwsh.exe"
+  } else {
+    Write-Warning "PowerShell not found; skipping WezTerm configuration."
+    return
+  }
+
+  $content = Get-Content -Raw -Path $weztermConfig
+  $hasConfigVar = ($content -match "(?m)^\\s*(local\\s+)?config\\s*=") -or ($content -match "(?m)^\\s*return\\s+config\\s*$")
+  if (-not $hasConfigVar) {
+    Write-Warning "WezTerm config doesn't appear to use a 'config' variable; skipping automatic edit."
+    Write-Host "Suggested snippet to add before your return statement:"
+    Write-Host "  config.default_prog = { '$shellExe' }"
+    return
+  }
+
+  $block = @"
+$($script:CCB_WEZTERM_START_MARKER)
+-- Set default shell to PowerShell (installed by ccb)
+config.default_prog = { '$shellExe' }
+-- Fallback (if '$shellExe' is not available): config.default_prog = { '$fallbackExe' }
+$($script:CCB_WEZTERM_END_MARKER)
+"@
+
+  $alreadyPowerShell = $content -match "default_prog\\s*=\\s*\\{\\s*'?(pwsh\\.exe|powershell\\.exe)'?\\s*\\}"
+  $hasDefaultProg = $content -match "default_prog\\s*="
+
+  $shouldApply = $false
+  if ($content -match [regex]::Escape($script:CCB_WEZTERM_START_MARKER)) {
+    $shouldApply = $true
+  } elseif (-not $hasDefaultProg) {
+    $shouldApply = $true
+  } elseif ($alreadyPowerShell) {
+    Write-Host "WezTerm default_prog already configured for PowerShell."
+    return
+  } else {
+    if ($Yes -or $env:CCB_INSTALL_ASSUME_YES -eq "1") {
+      $shouldApply = $true
+    } elseif ([Environment]::UserInteractive) {
+      $reply = Read-Host "WezTerm default_prog is already configured. Override to '$shellExe'? (y/N)"
+      if ($reply.Trim().ToLower() -in @("y", "yes")) {
+        $shouldApply = $true
+      }
+    }
+  }
+
+  if ($shouldApply) {
+    if ($content -match [regex]::Escape($script:CCB_WEZTERM_START_MARKER)) {
+      $pattern = "(?s)\\Q$($script:CCB_WEZTERM_START_MARKER)\\E.*?\\Q$($script:CCB_WEZTERM_END_MARKER)\\E"
+      $newContent = [regex]::Replace($content, $pattern, $block)
+    } elseif ($content -match "(?m)^\\s*return\\s+config\\s*$") {
+      $newContent = [regex]::Replace($content, "(?m)^\\s*return\\s+config\\s*$", ($block + "`r`nreturn config"))
+    } else {
+      $newContent = ($content.TrimEnd() + "`r`n`r`n" + $block + "`r`n")
+    }
+
+    [System.IO.File]::WriteAllText($weztermConfig, $newContent, $script:utf8NoBom)
+    Write-Host "✓ WezTerm configured to use $shellExe ($weztermConfig)"
+  } else {
+    if ($hasDefaultProg -and -not $alreadyPowerShell -and ($content -notmatch "(?m)^\\s*--\\s*ccb:\\s*To use PowerShell as default shell")) {
+      $hint = @"
+-- ccb: To use PowerShell as default shell, set:
+-- config.default_prog = { '$shellExe' }
+"@
+      if ($content -match "(?m)^\\s*return\\s+config\\s*$") {
+        $newContent = [regex]::Replace($content, "(?m)^\\s*return\\s+config\\s*$", ($hint + "`r`nreturn config"))
+      } else {
+        $newContent = ($content.TrimEnd() + "`r`n`r`n" + $hint + "`r`n")
+      }
+      [System.IO.File]::WriteAllText($weztermConfig, $newContent, $script:utf8NoBom)
+      Write-Host "WezTerm default_prog not changed; added a comment hint to $weztermConfig"
+      return
+    }
+    Write-Host "WezTerm default_prog not changed."
   }
 }
 

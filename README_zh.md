@@ -225,6 +225,10 @@ ccb update              # 更新 ccb 到最新版本
 
 > 结论先说：`ccb/cask/cping/cpend` 必须和 `codex/gemini` 跑在**同一个环境**（WSL 就都在 WSL，原生 Windows 就都在原生 Windows）。最常见问题就是装错环境导致 `cping` 不通。
 
+补充：安装脚本会为 Claude/Codex 的 skills 自动安装对应平台的 `SKILL.md` 版本：
+- Linux/macOS/WSL：bash heredoc 模板（`SKILL.md.bash`）
+- 原生 Windows：PowerShell here-string 模板（`SKILL.md.powershell`）
+
 ### 1) 前置条件：安装原生版 WezTerm（不是 WSL 版）
 
 - 请安装 Windows 原生 WezTerm（官网 `.exe` / winget 安装都可以），不要在 WSL 里安装 Linux 版 WezTerm。
@@ -294,6 +298,8 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 install
 
 提示：
 - 安装脚本会明确提醒“`ccb/cask/cping/cpend` 必须与 `codex/gemini` 在同一环境运行”，请确认你打算在原生 Windows 运行 `codex/gemini`。
+- 安装脚本优先使用 `pwsh.exe`（PowerShell 7+）；如果没有则使用 `powershell.exe`。
+- 如果检测到 WezTerm 配置文件，安装脚本会尝试设置 `config.default_prog` 为 PowerShell（会插入 `-- CCB_WEZTERM_*` 区块；若已有 `default_prog` 会先询问是否覆盖）。
 
 #### 4.2 安装后如何测试
 
