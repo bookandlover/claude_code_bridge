@@ -89,28 +89,67 @@ cca_status_for_path() {
             py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
             if [[ -n "$py" ]]; then
                 role="$("$py" - "$cfg" <<'PY'
-import json,sys
+import json,re,sys
 path = sys.argv[1]
 try:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
 except Exception:
     data = {}
+providers = {
+    "claude","codex","opencode","gemini","oc","cc","ge",
+}
+def _is_providerish(value):
+    if not isinstance(value, str):
+        return False
+    val = value.strip()
+    if not val:
+        return False
+    tokens = re.findall(r"[a-z0-9_]+", val.lower())
+    return bool(tokens) and all(tok in providers for tok in tokens)
+def _normalize(val):
+    if isinstance(val, str):
+        return "" if _is_providerish(val) else val
+    if isinstance(val, (list, tuple)):
+        items = [v for v in (_normalize(v) for v in val) if v]
+        return ",".join(items)
+    if isinstance(val, dict):
+        for key in ("role","role_type","roleType","roleset","type","profile","group","team","mode","name"):
+            if key in val:
+                out = _normalize(val.get(key))
+                if out:
+                    return out
+    return ""
 def _first_value(keys):
     for key in keys:
-        val = data.get(key)
-        if isinstance(val, (list, tuple)):
-            val = ",".join(str(v) for v in val if v)
-        if val:
-            return str(val)
+        out = _normalize(data.get(key))
+        if out:
+            return out
     return ""
-out = _first_value(("executor","role","type","roles"))
+out = _first_value(("role","role_type","roleType","roleset","type","profile","group","team","mode","roles"))
 if out:
     print(out)
 PY
 )"
             else
-                role="$(grep -Eo '"(executor|role|type)"\\s*:\\s*"[^"]+"' "$cfg" 2>/dev/null | head -n1 | sed -E 's/.*:"([^"]+)"/\\1/' || true)"
+                role="$(grep -Eo '"(role_type|roleType|roleset|role|type|profile|group|team|mode|roles)"\\s*:\\s*"[^"]+"' "$cfg" 2>/dev/null | head -n1 | sed -E 's/.*:"([^"]+)"/\\1/' || true)"
+                if [[ -n "$role" ]]; then
+                    local role_lc
+                    role_lc="$(printf '%s' "$role" | tr '[:upper:]' '[:lower:]')"
+                    local tokens
+                    tokens="$(printf '%s' "$role_lc" | tr '+,/' '   ' | tr -c 'a-z0-9_ ' ' ')"
+                    local providerish=1
+                    local t
+                    for t in $tokens; do
+                        case "$t" in
+                            claude|codex|opencode|gemini|oc|cc|ge) ;;
+                            *) providerish=0; break ;;
+                        esac
+                    done
+                    if (( providerish )); then
+                        role=""
+                    fi
+                fi
             fi
             break
         fi
