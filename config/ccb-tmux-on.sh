@@ -98,7 +98,7 @@ if [[ -x "$git_script" ]]; then
   # Cached to avoid blocking tmux (git can be slow in big repos).
   git_info="#(${git_script} \"#{pane_current_path}\")"
 fi
-cca_status='#([ -f /tmp/cca.pid ] && kill -0 $(cat /tmp/cca.pid 2>/dev/null) 2>/dev/null && echo "ON" || echo "OFF")'
+cca_status="#(${status_script} cca \"#{pane_current_path}\")"
 tmux set-option -t "$session" status-left "#[fg=#1e1e2e,bg=${accent},bold] ${label} #[fg=${accent},bg=#cba6f7]#[fg=#1e1e2e,bg=#cba6f7] ${git_info} #[fg=#cba6f7,bg=#89b4fa]#[fg=#1e1e2e,bg=#89b4fa] CCA:${cca_status} #[fg=#89b4fa,bg=#1e1e2e]" >/dev/null 2>&1 || true
 
 # Right: < Focus:AI < CCB:ver < ○○○○ < HH:MM

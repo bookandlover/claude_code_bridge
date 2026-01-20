@@ -68,6 +68,61 @@ check_session() {
     fi
 }
 
+cca_status_for_path() {
+    local work_dir="$1"
+    if [[ -z "$work_dir" || ! -d "$work_dir" ]]; then
+        echo "OFF"
+        return
+    fi
+
+    local autoflow_dir="$work_dir/.autoflow"
+    if [[ ! -d "$autoflow_dir" ]]; then
+        echo "OFF"
+        return
+    fi
+
+    local role=""
+    local cfg=""
+    for cfg in "$autoflow_dir/roles.session.json" "$autoflow_dir/roles.json"; do
+        if [[ -f "$cfg" ]]; then
+            local py
+            py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
+            if [[ -n "$py" ]]; then
+                role="$("$py" - "$cfg" <<'PY'
+import json,sys
+path = sys.argv[1]
+try:
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    data = {}
+def _first_value(keys):
+    for key in keys:
+        val = data.get(key)
+        if isinstance(val, (list, tuple)):
+            val = ",".join(str(v) for v in val if v)
+        if val:
+            return str(val)
+    return ""
+out = _first_value(("executor","role","type","roles"))
+if out:
+    print(out)
+PY
+)"
+            else
+                role="$(grep -Eo '"(executor|role|type)"\\s*:\\s*"[^"]+"' "$cfg" 2>/dev/null | head -n1 | sed -E 's/.*:"([^"]+)"/\\1/' || true)"
+            fi
+            break
+        fi
+    done
+
+    if [[ -n "$role" ]]; then
+        echo "ON:${role}"
+    else
+        echo "ON"
+    fi
+}
+
 # Get queue depth for a daemon (if available)
 get_queue_depth() {
     local name="$1"
@@ -100,7 +155,12 @@ format_ai_status() {
 main() {
     local mode="${1:-full}"
     local cache_s="${CCB_STATUS_CACHE_S:-1}"
-    local cache_file="$TMP_DIR/ccb-status.${mode}.cache"
+    local cache_key=""
+    if [[ "$mode" == "cca" ]]; then
+        cache_key="$(printf '%s' "${2:-}" | cksum 2>/dev/null | awk '{print $1}')"
+    fi
+    local cache_suffix="${cache_key:-default}"
+    local cache_file="$TMP_DIR/ccb-status.${mode}.${cache_suffix}.cache"
 
     # Simple cache to avoid hammering the system on frequent tmux redraws.
     if [[ "$cache_s" =~ ^[0-9]+$ ]] && (( cache_s > 0 )) && [[ -f "$cache_file" ]]; then
@@ -214,6 +274,10 @@ main() {
                     *)            echo "[$ai_name]" ;;
                 esac
             fi
+            ;;
+        cca)
+            local work_dir="${2:-}"
+            out="$(cca_status_for_path "$work_dir")"
             ;;
     esac
 
