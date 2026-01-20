@@ -117,9 +117,9 @@ PY
     done
 
     if [[ -n "$role" ]]; then
-        echo "ON:${role}"
+        echo "$role"
     else
-        echo "ON"
+        echo "OFF"
     fi
 }
 
