@@ -44,7 +44,7 @@ backend_env = get_backend_env()
 if backend_env and not os.environ.get("CCB_BACKEND_ENV"):
     os.environ["CCB_BACKEND_ENV"] = backend_env
 
-VERSION = "5.0.5"
+VERSION = "5.0.6"
 GIT_COMMIT = ""
 GIT_DATE = ""
 
@@ -3219,6 +3219,98 @@ def cmd_start(args):
     return launcher.run_up()
 
 
+def _find_all_zombie_sessions() -> list[dict]:
+    """Find all zombie tmux sessions (CCB sessions whose parent process is dead)."""
+    import re
+    pattern = re.compile(r"^(codex|gemini|opencode|claude|droid)-(\d+)-")
+    zombies = []
+
+    if os.name == "nt" or not shutil.which("tmux"):
+        return []
+
+    try:
+        result = subprocess.run(
+            ["tmux", "list-sessions", "-F", "#{session_name}"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode != 0:
+            return []
+    except Exception:
+        return []
+
+    for session in result.stdout.strip().split("\n"):
+        if not session:
+            continue
+        match = pattern.match(session)
+        if not match:
+            continue
+
+        provider, parent_pid_str = match.groups()
+        try:
+            parent_pid = int(parent_pid_str)
+        except ValueError:
+            continue
+
+        # Check if parent PID is alive
+        if _is_pid_alive(parent_pid):
+            continue  # Not a zombie
+
+        zombies.append({
+            "session": session,
+            "provider": provider,
+            "parent_pid": parent_pid
+        })
+
+    return zombies
+
+
+def _kill_global_zombies(yes: bool = False) -> int:
+    """Clean up all zombie tmux sessions globally."""
+    zombies = _find_all_zombie_sessions()
+
+    if not zombies:
+        print("✅ No zombie sessions found")
+        return 0
+
+    # Show list
+    print(f"Found {len(zombies)} zombie session(s):")
+    for z in zombies:
+        print(f"  - {z['session']} (parent PID {z['parent_pid']} exited)")
+
+    # Confirm
+    if not yes:
+        try:
+            reply = input("\nClean up these sessions? [y/N] ")
+            if reply.lower() != 'y':
+                print("❌ Cancelled")
+                return 1
+        except (EOFError, KeyboardInterrupt):
+            print("\n❌ Cancelled")
+            return 1
+
+    # Kill sessions
+    killed = 0
+    failed = 0
+    for z in zombies:
+        try:
+            result = subprocess.run(
+                ["tmux", "kill-session", "-t", z["session"]],
+                capture_output=True, timeout=5
+            )
+            if result.returncode == 0:
+                killed += 1
+            else:
+                failed += 1
+        except Exception:
+            failed += 1
+
+    if failed > 0:
+        print(f"✅ Cleaned up {killed} zombie session(s), {failed} failed")
+    else:
+        print(f"✅ Cleaned up {killed} zombie session(s)")
+    return 0
+
+
 def _find_daemon_pids_by_name(daemon_name: str) -> list[int]:
     """Find all PIDs of processes matching the daemon name."""
     pids = []
@@ -3268,11 +3360,17 @@ def _kill_pid(pid: int, force: bool = False) -> bool:
 
 
 def cmd_kill(args):
+    force = getattr(args, "force", False)
+
+    # Global zombie cleanup mode
+    if force:
+        yes = getattr(args, "yes", False)
+        return _kill_global_zombies(yes=yes)
+
+    # Project-level cleanup (original behavior)
     providers = _parse_providers(args.providers or ["codex", "gemini", "opencode", "claude", "droid"], allow_unknown=True)
     if not providers:
         return 2
-
-    force = getattr(args, "force", False)
 
     # Map provider names to their client specs to find daemon info
     specs = {
@@ -3316,45 +3414,17 @@ def cmd_kill(args):
         else:
              print(f"ℹ️  {provider}: No active session file found")
 
-        # 2. Kill background daemon
+        # 2. Kill background daemon (graceful shutdown)
         spec = specs.get(provider)
         if spec:
             daemon_name = spec.daemon_bin_name
             st_file = state_file_path(f"{daemon_name}.json")
-            killed_pids = set()
 
-            # Try graceful shutdown first (unless force mode)
-            if not force:
-                try:
-                    if shutdown_daemon(spec.protocol_prefix, 1.0, st_file):
-                        print(f"✅ {daemon_name} daemon shutdown requested")
-                except Exception:
-                    pass
-
-            # If force mode or graceful shutdown might have failed, find and kill all daemon processes
-            if force:
-                # Find all running daemon processes by name
-                pids = _find_daemon_pids_by_name(daemon_name)
-
-                # Also check state file for PID
-                try:
-                    if st_file.exists():
-                        st_data = json.loads(st_file.read_text(encoding="utf-8"))
-                        st_pid = st_data.get("pid")
-                        if st_pid and st_pid not in pids:
-                            pids.append(st_pid)
-                except Exception:
-                    pass
-
-                for pid in pids:
-                    if pid in killed_pids:
-                        continue
-                    if _kill_pid(pid, force=True):
-                        killed_pids.add(pid)
-                        print(f"✅ {daemon_name} (PID {pid}) force killed")
-
-                if not killed_pids:
-                    print(f"ℹ️  {daemon_name}: No running processes found")
+            try:
+                if shutdown_daemon(spec.protocol_prefix, 1.0, st_file):
+                    print(f"✅ {daemon_name} daemon shutdown requested")
+            except Exception:
+                pass
 
     return 0
 
@@ -4359,9 +4429,10 @@ def main():
         parser = argparse.ArgumentParser(description="Claude AI unified launcher", add_help=True)
         subparsers = parser.add_subparsers(dest="command", help="Subcommands")
 
-        kill_parser = subparsers.add_parser("kill", help="Terminate session")
-        kill_parser.add_argument("providers", nargs="*", default=[], help="Backends to terminate (codex/gemini/opencode/claude)")
-        kill_parser.add_argument("-f", "--force", action="store_true", help="Force kill all daemon processes (SIGKILL)")
+        kill_parser = subparsers.add_parser("kill", help="Terminate session or clean up zombies")
+        kill_parser.add_argument("providers", nargs="*", default=[], help="Backends to terminate (codex/gemini/opencode/claude/droid)")
+        kill_parser.add_argument("-f", "--force", action="store_true", help="Clean up all zombie tmux sessions globally")
+        kill_parser.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt (with -f)")
 
         update_parser = subparsers.add_parser("update", help="Update to latest or specified version")
         update_parser.add_argument("target", nargs="?",

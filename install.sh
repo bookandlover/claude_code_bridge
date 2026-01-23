@@ -688,6 +688,51 @@ install_codex_skills() {
   echo "Updated Codex skills directory: $skills_dst"
 }
 
+install_droid_skills() {
+  local skills_src="$REPO_ROOT/droid_skills"
+  local skills_dst="${DROID_HOME:-$HOME/.droid}/skills"
+
+  if [[ ! -d "$skills_src" ]]; then
+    return
+  fi
+
+  if ! command -v droid >/dev/null 2>&1; then
+    return
+  fi
+
+  mkdir -p "$skills_dst"
+  echo "Installing Droid skills..."
+  for skill_dir in "$skills_src"/*/; do
+    [[ -d "$skill_dir" ]] || continue
+    local skill_name
+    skill_name=$(basename "$skill_dir")
+
+    local src_skill_md=""
+    if [[ -f "$skill_dir/SKILL.md" ]]; then
+      src_skill_md="$skill_dir/SKILL.md"
+    else
+      continue
+    fi
+
+    local dst_dir="$skills_dst/$skill_name"
+    local dst_skill_md="$dst_dir/SKILL.md"
+    mkdir -p "$dst_dir"
+    cp -f "$src_skill_md" "$dst_skill_md"
+
+    # Copy additional subdirectories (e.g., references/) if they exist
+    for subdir in "$skill_dir"*/; do
+      if [[ -d "$subdir" ]]; then
+        local subdir_name
+        subdir_name=$(basename "$subdir")
+        cp -rf "$subdir" "$dst_dir/$subdir_name"
+      fi
+    done
+
+    echo "  Updated Droid skill: $skill_name"
+  done
+  echo "Updated Droid skills directory: $skills_dst"
+}
+
 install_droid_delegation() {
   if [[ "${CCB_DROID_AUTOINSTALL:-1}" == "0" ]]; then
     return
@@ -1186,6 +1231,7 @@ install_all() {
   install_claude_commands
   install_claude_skills
   install_codex_skills
+  install_droid_skills
   install_droid_delegation
   install_claude_md_config
   install_settings_permissions

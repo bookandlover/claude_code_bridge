@@ -3,6 +3,7 @@
 # Shows daemon status and active AI sessions
 
 CCB_DIR="${CCB_DIR:-$HOME/.local/share/ccb}"
+CCB_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/ccb"
 TMP_DIR="${TMPDIR:-/tmp}"
 
 # Color codes for tmux status bar (Tokyo Night palette)
@@ -17,28 +18,14 @@ C_TEAL="#[fg=#7dcfff,bold]"
 C_RESET="#[fg=default,nobold]"
 C_DIM="#[fg=#565f89]"
 
-# Check if a daemon is running by looking for its PID file or process
+# Check if a daemon is running via pgrep
 check_daemon() {
     local name="$1"
-    local pid_file="$TMP_DIR/ccb-${name}d.pid"
-
-    if [[ -f "$pid_file" ]]; then
-        local pid=$(cat "$pid_file" 2>/dev/null)
-        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-            echo "on"
-            return
-        fi
+    if pgrep -f "bin/${name}d$" >/dev/null 2>&1; then
+        echo "on"
+    else
+        echo "off"
     fi
-
-    # Optional fallback: pgrep can be expensive; keep it opt-in.
-    if [[ "${CCB_STATUS_ALLOW_PGREP:-0}" == "1" ]]; then
-        if pgrep -f "${name}d" >/dev/null 2>&1; then
-            echo "on"
-            return
-        fi
-    fi
-
-    echo "off"
 }
 
 # Check if a session file exists and is recent (active session)

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Claude Code Bridge (ccb) v5.0.5
+# Claude Code Bridge (ccb) v5.0.6
 
 **New Multi-Model Collaboration Tool via Split-Pane Terminal**
 **Claude & Codex & Gemini & OpenCode & Droid**
@@ -50,6 +50,16 @@
 <h2 align="center">🚀 What's New</h2>
 
 <details open>
+<summary><b>v5.0.6</b> - Zombie session cleanup + mounted skill optimization</summary>
+
+- **Zombie Cleanup**: `ccb kill -f` now cleans up orphaned tmux sessions globally (sessions whose parent process has exited)
+- **Mounted Skill**: Optimized to use `pgrep` for daemon detection (~4x faster), extracted to standalone `ccb-mounted` script
+- **Droid Skills**: Added full skill set (cask/gask/lask/oask + ping/pend variants) to `droid_skills/`
+- **Install**: Added `install_droid_skills()` to install Droid skills to `~/.droid/skills/`
+
+</details>
+
+<details>
 <summary><b>v5.0.5</b> - Droid delegation tools + setup</summary>
 
 - **Droid**: Adds delegation tools (`ccb_ask_*` plus `cask/gask/lask/oask` aliases).
@@ -549,6 +559,11 @@ ccb reinstall
 
 <details>
 <summary><b>Version History</b></summary>
+
+### v5.0.6
+- **Zombie Cleanup**: `ccb kill -f` cleans up orphaned tmux sessions globally
+- **Mounted Skill**: Optimized with `pgrep`, extracted to `ccb-mounted` script
+- **Droid Skills**: Full skill set added to `droid_skills/`
 
 ### v5.0.5
 - **Droid**: Add delegation tools (`ccb_ask_*` and `cask/gask/lask/oask`) plus `ccb droid setup-delegation` for MCP install
