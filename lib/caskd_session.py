@@ -76,6 +76,14 @@ class CodexProjectSession:
     def backend(self):
         return get_backend_for_session(self.data)
 
+    def _attach_pane_log(self, backend: object, pane_id: str) -> None:
+        ensure = getattr(backend, "ensure_pane_log", None)
+        if callable(ensure):
+            try:
+                ensure(str(pane_id))
+            except Exception:
+                pass
+
     def ensure_pane(self) -> Tuple[bool, str]:
         backend = self.backend()
         if not backend:
@@ -83,6 +91,7 @@ class CodexProjectSession:
 
         pane_id = self.pane_id
         if pane_id and backend.is_alive(pane_id):
+            self._attach_pane_log(backend, pane_id)
             return True, pane_id
 
         marker = self.pane_title_marker
@@ -94,6 +103,7 @@ class CodexProjectSession:
                 self.data["pane_id"] = str(resolved)
                 self.data["updated_at"] = _now_str()
                 self._write_back()
+                self._attach_pane_log(backend, str(resolved))
                 return True, str(resolved)
 
         # tmux self-heal: if pane exists but is dead (remain-on-exit), respawn in-place.
@@ -120,6 +130,7 @@ class CodexProjectSession:
                             self.data["pane_id"] = str(target)
                             self.data["updated_at"] = _now_str()
                             self._write_back()
+                            self._attach_pane_log(backend, str(target))
                             return True, str(target)
                         last_err = "respawn did not revive pane"
                     except Exception as exc:

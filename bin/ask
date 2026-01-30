@@ -48,6 +48,40 @@ PROVIDER_DAEMONS = {
 }
 
 
+def _env_int(name: str, default: int) -> int:
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except Exception:
+        return default
+
+
+def _cleanup_task_logs(log_dir: Path) -> None:
+    """Keep latest task logs under log_dir."""
+    max_files = _env_int("CCB_TASK_LOG_MAX_FILES", 100)
+    if max_files <= 0:
+        return
+    try:
+        logs = list(log_dir.glob("ask-*.log"))
+    except Exception:
+        return
+    if len(logs) <= max_files:
+        return
+    try:
+        logs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    except Exception:
+        logs.sort(key=lambda p: p.name, reverse=True)
+    for path in logs[max_files:]:
+        prefix = path.name[:-4]  # strip .log
+        for ext in (".log", ".sh", ".ps1", ".msg"):
+            try:
+                (log_dir / f"{prefix}{ext}").unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
 def _use_unified_daemon() -> bool:
     """Check if unified askd daemon should be used (default: True)."""
     val = (os.environ.get("CCB_UNIFIED_ASKD") or "").strip().lower()
@@ -284,6 +318,11 @@ def main(argv: list[str]) -> int:
     log_dir = Path(tempfile.gettempdir()) / "ccb-tasks"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / f"ask-{provider}-{task_id}.log"
+    try:
+        log_file.touch(exist_ok=True)
+    except Exception:
+        pass
+    _cleanup_task_logs(log_dir)
 
     # Detect caller from environment or default to "claude"
     caller = _default_caller()

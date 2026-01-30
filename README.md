@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-5.1.2-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-5.1.3-orange.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/bfly123/claude_code_bridge/actions/workflows/test.yml/badge.svg)](https://github.com/bfly123/claude_code_bridge/actions/workflows/test.yml)
@@ -50,6 +50,16 @@
 <h2 align="center">🚀 What's New</h2>
 
 <details open>
+<summary><b>v5.1.3</b> - Tmux Claude Ask Stability</summary>
+
+**🔧 Fixes & Improvements:**
+- **tmux Claude ask**: read replies from pane output with automatic pipe-pane logging for more reliable completion
+
+See [CHANGELOG.md](CHANGELOG.md) for full details.
+
+</details>
+
+<details>
 <summary><b>v5.1.2</b> - Daemon & Hooks Reliability</summary>
 
 **🔧 Fixes & Improvements:**

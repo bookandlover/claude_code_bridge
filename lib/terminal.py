@@ -6,6 +6,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import tempfile
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -22,6 +23,133 @@ def _env_float(name: str, default: float) -> float:
     except ValueError:
         return default
     return max(0.0, value)
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _sanitize_filename(value: str) -> str:
+    text = (value or "").strip()
+    if not text:
+        return ""
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", text).strip("_")
+
+
+_LAST_PANE_LOG_CLEAN: float = 0.0
+
+
+def _pane_log_root() -> Path:
+    try:
+        from askd_runtime import run_dir
+    except Exception:
+        return Path.home() / ".cache" / "ccb"
+    return run_dir() / "pane-logs"
+
+
+def _pane_log_dir(backend: str, socket_name: str | None) -> Path:
+    root = _pane_log_root()
+    if backend == "tmux":
+        if socket_name:
+            safe = _sanitize_filename(socket_name) or "default"
+            return root / f"tmux-{safe}"
+        return root / "tmux"
+    safe_backend = _sanitize_filename(backend) or "pane"
+    return root / safe_backend
+
+
+def _pane_log_path_for(pane_id: str, backend: str, socket_name: str | None) -> Path:
+    pid = (pane_id or "").strip().replace("%", "")
+    safe = _sanitize_filename(pid) or "pane"
+    return _pane_log_dir(backend, socket_name) / f"pane-{safe}.log"
+
+
+def _maybe_trim_log(path: Path) -> None:
+    max_bytes = max(0, _env_int("CCB_PANE_LOG_MAX_BYTES", 10 * 1024 * 1024))
+    if max_bytes <= 0:
+        return
+    try:
+        size = path.stat().st_size
+    except Exception:
+        return
+    if size <= max_bytes:
+        return
+    try:
+        with path.open("rb") as handle:
+            handle.seek(-max_bytes, os.SEEK_END)
+            tail = handle.read()
+    except Exception:
+        return
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+        try:
+            with os.fdopen(fd, "wb") as out:
+                out.write(tail)
+            os.replace(tmp_name, path)
+        finally:
+            try:
+                os.unlink(tmp_name)
+            except Exception:
+                pass
+    except Exception:
+        return
+
+
+def _cleanup_pane_logs(dir_path: Path) -> None:
+    global _LAST_PANE_LOG_CLEAN
+    interval_s = _env_float("CCB_PANE_LOG_CLEAN_INTERVAL_S", 600.0)
+    now = time.time()
+    if interval_s and (now - _LAST_PANE_LOG_CLEAN) < interval_s:
+        return
+    _LAST_PANE_LOG_CLEAN = now
+
+    ttl_days = _env_int("CCB_PANE_LOG_TTL_DAYS", 7)
+    max_files = _env_int("CCB_PANE_LOG_MAX_FILES", 200)
+    if ttl_days <= 0 and max_files <= 0:
+        return
+
+    try:
+        if not dir_path.exists():
+            return
+    except Exception:
+        return
+
+    files: list[Path] = []
+    try:
+        for entry in dir_path.iterdir():
+            if entry.is_file():
+                files.append(entry)
+    except Exception:
+        return
+
+    if ttl_days > 0:
+        cutoff = now - (ttl_days * 86400)
+        for path in list(files):
+            try:
+                if path.stat().st_mtime < cutoff:
+                    path.unlink(missing_ok=True)
+                    files.remove(path)
+            except Exception:
+                continue
+
+    if max_files > 0 and len(files) > max_files:
+        try:
+            files.sort(key=lambda p: p.stat().st_mtime)
+        except Exception:
+            files.sort(key=lambda p: p.name)
+        extra = len(files) - max_files
+        for path in files[:extra]:
+            try:
+                path.unlink(missing_ok=True)
+            except Exception:
+                continue
 
 
 def is_windows() -> bool:
@@ -255,6 +383,70 @@ class TmuxBackend(TerminalBackend):
         if timeout is not None:
             kwargs["timeout"] = timeout
         return _run([*self._tmux_base(), *args], check=check, **kwargs)
+
+    def pane_log_path(self, pane_id: str) -> Optional[Path]:
+        pid = (pane_id or "").strip()
+        if not pid:
+            return None
+        try:
+            return _pane_log_path_for(pid, "tmux", self._socket_name)
+        except Exception:
+            return None
+
+    def ensure_pane_log(self, pane_id: str) -> Optional[Path]:
+        """
+        Ensure tmux pipe-pane logging is enabled for this pane.
+        Returns the log path when available.
+        """
+        pid = (pane_id or "").strip()
+        if not pid:
+            return None
+        log_path = self.pane_log_path(pid)
+        if not log_path:
+            return None
+        try:
+            _cleanup_pane_logs(log_path.parent)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.touch(exist_ok=True)
+        except Exception:
+            pass
+        try:
+            # Use tee (no shell redirection) so tmux can exec reliably.
+            cmd = f"tee -a {log_path}"
+            self._tmux_run(["pipe-pane", "-o", "-t", pid, cmd], check=False)
+        except Exception:
+            return log_path
+        try:
+            _maybe_trim_log(log_path)
+        except Exception:
+            pass
+        try:
+            info = getattr(self, "_pane_log_info", None)
+            if info is None:
+                info = {}
+                self._pane_log_info = info
+            info[str(pid)] = time.time()
+        except Exception:
+            pass
+        return log_path
+
+    def refresh_pane_logs(self) -> None:
+        """
+        Best-effort reattach pipe-pane for known panes. Useful when tmux loses pipe state.
+        """
+        info = getattr(self, "_pane_log_info", None)
+        if not isinstance(info, dict):
+            return
+        for pid in list(info.keys()):
+            try:
+                if not self.is_alive(pid):
+                    continue
+                cp = self._tmux_run(["display-message", "-p", "-t", pid, "#{pane_pipe}"], capture=True)
+                if (cp.stdout or "").strip() == "1":
+                    continue
+                self.ensure_pane_log(pid)
+            except Exception:
+                continue
 
     @staticmethod
     def _looks_like_pane_id(value: str) -> bool:
@@ -532,6 +724,11 @@ class TmuxBackend(TerminalBackend):
         if not pane_id:
             raise ValueError("pane_id is required")
 
+        try:
+            self.ensure_pane_log(pane_id)
+        except Exception:
+            pass
+
         cmd_body = (cmd or "").strip()
         if not cmd_body:
             raise ValueError("cmd is required")
@@ -778,6 +975,31 @@ class WeztermBackend(TerminalBackend):
             time.sleep(paste_delay)
 
         self._send_enter(pane_id)
+
+    def pane_log_path(self, pane_id: str) -> Optional[Path]:
+        pid = (pane_id or "").strip()
+        if not pid:
+            return None
+        try:
+            return _pane_log_path_for(pid, "wezterm", None)
+        except Exception:
+            return None
+
+    def ensure_pane_log(self, pane_id: str) -> Optional[Path]:
+        """
+        WezTerm doesn't expose a stable stream capture API; create the log file path
+        for consistency so higher layers can rely on a predictable location.
+        """
+        log_path = self.pane_log_path(pane_id)
+        if not log_path:
+            return None
+        try:
+            _cleanup_pane_logs(log_path.parent)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.touch(exist_ok=True)
+        except Exception:
+            pass
+        return log_path
 
     @staticmethod
     def _parse_list_output(text: str) -> list[dict]:

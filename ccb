@@ -44,9 +44,9 @@ backend_env = get_backend_env()
 if backend_env and not os.environ.get("CCB_BACKEND_ENV"):
     os.environ["CCB_BACKEND_ENV"] = backend_env
 
-VERSION = "5.1.2"
-GIT_COMMIT = ""
-GIT_DATE = ""
+VERSION = "5.1.3"
+GIT_COMMIT = "e04c8d1"
+GIT_DATE = "2026-01-29"
 
 _WIN_DRIVE_RE = re.compile(r"^[A-Za-z]:([/\\\\]|$)")
 _MNT_DRIVE_RE = re.compile(r"^/mnt/([A-Za-z])/(.*)$")
