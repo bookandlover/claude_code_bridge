@@ -1596,6 +1596,8 @@ class AILauncher:
         return cmd
 
     def _warmup_provider(self, provider: str, timeout: float = 8.0) -> bool:
+        if provider == "gemini":
+            return True
         if provider == "codex":
             ping_script = self.script_dir / "bin" / "cping"
         elif provider == "gemini":
