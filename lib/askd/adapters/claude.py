@@ -402,6 +402,7 @@ class ClaudeAdapter(BaseProviderAdapter):
 
     def _finalize_result(self, result: ProviderResult, req: ProviderRequest) -> None:
         _write_log(f"[INFO] done provider=claude req_id={result.req_id} exit={result.exit_code}")
+        _write_log(f"[INFO] notify_completion caller={req.caller} done_seen={result.done_seen} email_req_id={req.email_req_id}")
         notify_completion(
             provider="claude",
             output_file=req.output_path,
