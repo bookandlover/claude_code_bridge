@@ -1,5 +1,6 @@
 ---
 name: ask
+description: Send the user's request to specified AI provider asynchronously
 metadata:
   short-description: Ask AI provider asynchronously
 ---
