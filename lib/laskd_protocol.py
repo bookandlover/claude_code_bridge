@@ -14,8 +14,8 @@ from ccb_protocol import (
     strip_done_text,
 )
 
-# Match both old (32-char hex) and new (YYYYMMDD-HHMMSS-mmm-PID) req_id formats
-ANY_DONE_LINE_RE = re.compile(r"^\s*CCB_DONE:\s*(?:[0-9a-f]{32}|\d{8}-\d{6}-\d{3}-\d+)\s*$", re.IGNORECASE)
+# Match new req_id format: YYYYMMDD-HHMMSS-mmm-PID-counter
+ANY_DONE_LINE_RE = re.compile(r"^\s*CCB_DONE:\s*\d{8}-\d{6}-\d{3}-\d+-\d+\s*$", re.IGNORECASE)
 _SKILL_CACHE: str | None = None
 
 
@@ -36,6 +36,15 @@ def _env_bool(name: str, default: bool = True) -> bool:
     if val in {"1", "true", "yes", "on"}:
         return True
     return default
+
+
+def _language_hint() -> str:
+    lang = (os.environ.get("CCB_REPLY_LANG") or os.environ.get("CCB_LANG") or "").strip().lower()
+    if lang in {"zh", "cn", "chinese"}:
+        return "Reply in Chinese."
+    if lang in {"en", "english"}:
+        return "Reply in English."
+    return ""
 
 
 def _load_claude_skills() -> str:
@@ -116,20 +125,22 @@ def wrap_claude_prompt(message: str, req_id: str) -> str:
     skills = _load_claude_skills()
     if skills:
         message = f"{skills}\n\n{message}".strip()
-    extra = ""
+    extra_lines: list[str] = []
     if _wants_markdown_table(message):
-        extra = "- If asked for a Markdown table, output only pipe-and-dash Markdown table syntax (no box-drawing characters).\n"
+        extra_lines.append("If asked for a Markdown table, output only pipe-and-dash Markdown table syntax (no box-drawing characters).")
+    lang_hint = _language_hint()
+    if lang_hint:
+        extra_lines.append(lang_hint)
+    extra = "\n".join(extra_lines).strip()
+    if extra:
+        extra = f"{extra}\n\n"
     return (
         f"{REQ_ID_PREFIX} {req_id}\n\n"
         f"{message}\n\n"
-        "IMPORTANT:\n"
-        "- Reply with an execution summary, in English. Do not stay silent.\n"
-        "- Respond in the main assistant only (no subagents/sidechains/tools).\n"
-        "- Ensure the final CCB_DONE line is in the main assistant response.\n"
         f"{extra}"
-        "- Begin your reply with this exact first line (verbatim, on its own line):\n"
+        "Reply using exactly this format:\n"
         f"{BEGIN_PREFIX} {req_id}\n"
-        "- End your reply with this exact final line (verbatim, on its own line):\n"
+        "<reply>\n"
         f"{DONE_PREFIX} {req_id}\n"
     )
 

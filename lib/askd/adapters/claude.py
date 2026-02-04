@@ -610,6 +610,8 @@ def _line_counts_as_response(line: str, req_id: str) -> bool:
     clean = _clean_line(line)
     if not clean.strip():
         return False
+    if clean.strip() == "<reply>":
+        return False
     # Ignore prompt scaffolding / protocol markers echoed by the terminal.
     if f"{REQ_ID_PREFIX} {req_id}" in clean:
         return False
@@ -678,7 +680,7 @@ def _extract_reply_from_pane(lines: list[str], req_id: str) -> str:
             continue
 
         # Handle noise lines (UI elements, spinners)
-        if _is_noise_line(raw):
+        if _is_noise_line(raw) or clean.strip() == "<reply>":
             consecutive_noise += 1
             consecutive_empty = 0
             if consecutive_noise >= max_consecutive_noise:
