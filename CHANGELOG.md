@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v5.2.2 (2026-02-04)
+
+### 🚀 Session Switch Capture
+
+- **Old Session Fields**: `.claude-session` now records `old_claude_session_id` / `old_claude_session_path` with `old_updated_at`
+- **Auto Context Export**: Previous Claude session is extracted to `~/.ccb/transfers/claude-<timestamp>-<old_id>.md`
+- **Transfer Cleanup**: Improved noise filtering while preserving tool-only actions
+
 ## v5.1.2 (2026-01-29)
 
 ### 🔧 Bug Fixes & Improvements

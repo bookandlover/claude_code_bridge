@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from laskd_session import ClaudeProjectSession, load_project_session
+from laskd_session import ClaudeProjectSession, load_project_session, _maybe_auto_extract_old_session
 from session_file_watcher import HAS_WATCHDOG, SessionFileWatcher
 from session_utils import find_project_session_file, safe_write_session
 
@@ -808,6 +808,29 @@ class LaskdSessionRegistry:
             payload = {}
         if not isinstance(payload, dict):
             payload = {}
+        old_path = str(payload.get("claude_session_path") or "").strip()
+        old_id = str(payload.get("claude_session_id") or "").strip()
+        work_dir_val = payload.get("work_dir")
+        work_dir_path: Optional[Path] = None
+        if isinstance(work_dir_val, str) and work_dir_val.strip():
+            try:
+                work_dir_path = Path(work_dir_val.strip())
+            except Exception:
+                work_dir_path = None
+        if work_dir_path is None:
+            try:
+                if session_file.parent.name == ".ccb_config":
+                    work_dir_path = session_file.parent.parent
+            except Exception:
+                work_dir_path = None
+        new_path = str(log_path)
+        new_id = str(session_id or "").strip()
+        if old_id and old_id != new_id:
+            payload["old_claude_session_id"] = old_id
+        if old_path and old_path != new_path:
+            payload["old_claude_session_path"] = old_path
+        if (old_id and old_id != new_id) or (old_path and old_path != new_path):
+            payload["old_updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
         payload["claude_session_path"] = str(log_path)
         payload["claude_session_id"] = session_id
         payload["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -817,6 +840,9 @@ class LaskdSessionRegistry:
         ok, _err = safe_write_session(session_file, content)
         if not ok:
             return
+        if old_path and old_path != new_path:
+            if work_dir_path:
+                _maybe_auto_extract_old_session(old_path, work_dir_path)
 
     def _on_new_log_file_global(self, path: Path) -> None:
         if path.name == "sessions-index.json":

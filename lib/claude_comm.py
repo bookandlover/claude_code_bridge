@@ -835,9 +835,18 @@ class ClaudeCommunicator:
                 data = {}
             if not isinstance(data, dict):
                 data = {}
+            old_path = str(data.get("claude_session_path") or "").strip()
+            old_id = str(data.get("claude_session_id") or "").strip()
             data["claude_session_path"] = str(session_path)
             if session_path.stem and data.get("claude_session_id") != session_path.stem:
                 data["claude_session_id"] = session_path.stem
+            new_id = str(session_path.stem or "").strip()
+            if old_id and old_id != new_id:
+                data["old_claude_session_id"] = old_id
+            if old_path and old_path != str(session_path):
+                data["old_claude_session_path"] = old_path
+            if (old_id and old_id != new_id) or (old_path and old_path != str(session_path)):
+                data["old_updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
             data["updated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
             data["active"] = True
             payload = json.dumps(data, ensure_ascii=False, indent=2) + "\n"

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Claude Code Bridge (ccb) v5.2.1
+# Claude Code Bridge (ccb) v5.2.2
 
 **New Multi-Model Collaboration Tool via Split-Pane Terminal**
 **Claude & Codex & Gemini & OpenCode & Droid**
@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/Every_Model_Controllable-CF1322?style=for-the-badge" alt="Every Model Controllable">
 </p>
 
-[![Version](https://img.shields.io/badge/version-5.2.1-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-5.2.2-orange.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/bfly123/claude_code_bridge/actions/workflows/test.yml/badge.svg)](https://github.com/bfly123/claude_code_bridge/actions/workflows/test.yml)
@@ -50,6 +50,18 @@
 <h2 align="center">🚀 What's New</h2>
 
 <details open>
+<summary><b>v5.2.2</b> - Session Switch Capture & Context Transfer</summary>
+
+**🔁 Session Switch Tracking:**
+- **Old Session Fields**: `.claude-session` now records `old_claude_session_id` / `old_claude_session_path` with `old_updated_at`
+- **Auto Context Export**: Previous Claude session is automatically extracted to `~/.ccb/transfers/claude-<timestamp>-<old_id>.md`
+- **Cleaner Transfers**: Noise filtering removes protocol markers and guardrails while keeping tool-only actions
+
+These updates make session handoff more reliable and easier to audit.
+
+</details>
+
+<details>
 <summary><b>v5.2.1</b> - Enhanced Ask Command Stability</summary>
 
 **🔧 Stability Improvements:**

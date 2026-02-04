@@ -1,6 +1,6 @@
 <div align="center">
 
-# Claude Code Bridge (ccb) v5.2.0
+# Claude Code Bridge (ccb) v5.2.2
 
 **基于终端分屏的全新多模型交互协作工具**
 **Claude & Codex & Gemini & OpenCode & Droid**
@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/模型皆可控-CF1322?style=for-the-badge" alt="模型皆可控">
 </p>
 
-[![Version](https://img.shields.io/badge/version-5.2.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-5.2.2-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
 
 [English](README.md) | **中文**
@@ -51,6 +51,18 @@
 <h2 align="center">🚀 新版本速览</h2>
 
 <details open>
+<summary><b>v5.2.2</b> - 会话切换跟踪 & 自动提取</summary>
+
+**🔁 会话切换跟踪：**
+- **上一条会话字段**：`.claude-session` 记录 `old_claude_session_id` / `old_claude_session_path` 与 `old_updated_at`
+- **自动导出**：切换会话时自动生成 `~/.ccb/transfers/claude-<timestamp>-<old_id>.md`
+- **内容去噪**：过滤协议标记/护栏，保留工具调用摘要
+
+这些更新让会话交接更可靠、更易追踪。
+
+</details>
+
+<details>
 <summary><b>v5.2.0</b> - 邮件集成，远程访问 AI</summary>
 
 **📧 新功能：邮件服务**
