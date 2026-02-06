@@ -661,7 +661,7 @@ Providers: ``codex``, ``gemini``, ``opencode``, ``droid``, ``claude``
   }
 
   $allowList = @(
-    "Bash(ask *)", "Bash(ping *)", "Bash(pend *)"
+    "Bash(ask:*)", "Bash(ping:*)", "Bash(pend:*)"
   )
 
   if (Test-Path $settingsJson) {
@@ -849,7 +849,7 @@ function Uninstall-Native {
   # 5. Remove settings.json permissions
   $settingsFile = Join-Path $env:USERPROFILE ".claude\settings.json"
   if (Test-Path $settingsFile) {
-    $permsToRemove = @("Bash(ask *)", "Bash(ping *)", "Bash(pend *)")
+    $permsToRemove = @("Bash(ask:*)", "Bash(ping:*)", "Bash(pend:*)")
     try {
       $settings = Get-Content $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json
       if ($settings.permissions -and $settings.permissions.allow) {
