@@ -264,16 +264,49 @@ install_watchdog() {
     return 0
   fi
   msg watchdog_installing
+
+  # 1. Try uv (fast, no PEP 668 issues)
+  if command -v uv >/dev/null 2>&1; then
+    if uv pip install --system "watchdog>=2.1.0" >/dev/null 2>&1 || \
+       uv pip install "watchdog>=2.1.0" >/dev/null 2>&1; then
+      if python_has_module "watchdog"; then
+        msg watchdog_installed
+        return 0
+      fi
+    fi
+  fi
+
   if ! "$PYTHON_BIN" -m pip --version >/dev/null 2>&1; then
     msg pip_missing
     return 1
   fi
+
+  # 2. Try standard pip install --user
   if "$PYTHON_BIN" -m pip install --user "watchdog>=2.1.0" >/dev/null 2>&1; then
     if python_has_module "watchdog"; then
       msg watchdog_installed
       return 0
     fi
   fi
+
+  # 3. PEP 668 fallback: --break-system-packages (Homebrew Python, Debian 12+, etc.)
+  if "$PYTHON_BIN" -m pip install --user --break-system-packages "watchdog>=2.1.0" >/dev/null 2>&1; then
+    if python_has_module "watchdog"; then
+      msg watchdog_installed
+      return 0
+    fi
+  fi
+
+  # 4. Try pipx inject into a shared venv as last resort
+  if command -v pipx >/dev/null 2>&1; then
+    if pipx install watchdog >/dev/null 2>&1; then
+      if python_has_module "watchdog"; then
+        msg watchdog_installed
+        return 0
+      fi
+    fi
+  fi
+
   msg watchdog_failed
   return 1
 }
