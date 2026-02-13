@@ -15,7 +15,7 @@
 
 ## Steps
 - [x] S1: Create hello.py with main() that prints Hello, AutoFlow!
-- [>] S2: Create test_hello.py with pytest test using capsys
+- [x] S2: Create test_hello.py with pytest test using capsys
 
 ## Done
 - python3 hello.py prints Hello, AutoFlow!
