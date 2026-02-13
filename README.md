@@ -298,22 +298,6 @@ Highlights:
 
 ---
 
-<h3 align="center">🧠 Introducing CCA (Claude Code Autoflow)</h3>
-
-Unlock the full potential of `ccb` with **CCA** — an advanced workflow automation system built on top of this bridge.
-
-*   **Workflow Automation**: Intelligent task assignment and automated state management.
-*   **Seamless Integration**: Native support for the v3.0 daemon architecture.
-
-[👉 View Project on GitHub](https://github.com/bfly123/claude_code_autoflow)
-
-**Install via CCB:**
-```bash
-ccb update cca
-```
-
----
-
 ## 🚀 Quick Start
 
 **Step 1:** Install [WezTerm](https://wezfurlong.org/wezterm/) (native `.exe` for Windows)
@@ -431,7 +415,6 @@ ccb update              # Update ccb to the latest version
 ccb update 4            # Update to the highest v4.x.x version
 ccb update 4.1          # Update to the highest v4.1.x version
 ccb update 4.1.2        # Update to specific version v4.1.2
-ccb update cca          # Update CCA (Claude Code Autoflow) only
 ccb uninstall           # Uninstall ccb and clean configs
 ccb reinstall           # Clean then reinstall ccb
 ```
@@ -828,7 +811,7 @@ ccb reinstall
 
 ### v5.0.1
 - **Skills**: New `/all-plan` with Superpowers brainstorming + availability gating; Codex `lping/lpend` added; `gask` keeps brief summaries with `CCB_DONE`.
-- **CCA Status Bar**: CCA label now reads role name from `.autoflow/roles.json` (supports `_meta.name`) and caches per path.
+- **Status Bar**: Role label now reads role name from `.autoflow/roles.json` (supports `_meta.name`) and caches per path.
 - **Installer**: Copy skill subdirectories (e.g., `references/`) for Claude/Codex installs.
 - **CLI**: Added `ccb uninstall` / `ccb reinstall` with Claude config cleanup.
 - **Routing**: Tighter project/session resolution (prefer `.ccb` anchor; avoid cross-project Claude session mismatches).
@@ -870,9 +853,9 @@ ccb reinstall
 - **Tmux Clipboard Enhancement**: Added `xsel` support and `update-environment` for better clipboard integration across GUI/remote sessions
 
 ### v4.0.7
-- **Tmux Status Bar Redesign**: Dual-line status bar with modern dot indicators (●/○), git branch, CCA status, and CCB version display
+- **Tmux Status Bar Redesign**: Dual-line status bar with modern dot indicators (●/○), git branch, and CCB version display
 - **Session Freshness**: Always scan logs for latest session instead of using cached session file
-- **Simplified Auto Mode**: Removed CCA detection logic from `ccb -a`, now purely uses `--dangerously-skip-permissions`
+- **Simplified Auto Mode**: `ccb -a` now purely uses `--dangerously-skip-permissions`
 
 ### v4.0.6
 - **Session Overrides**: `cping/gping/oping/cpend/opend` support `--session-file` / `CCB_SESSION_FILE` to bypass wrong `cwd`
@@ -890,7 +873,6 @@ ccb reinstall
 - **Codex Config Safety**: Write auto-approval settings into a CCB-marked block to avoid config conflicts
 
 ### v4.0.2
-- **CCA Detection**: Improved install directory inference for various layouts
 - **Clipboard Paste**: Cross-platform support (xclip/wl-paste/pbpaste) in tmux config
 - **Install UX**: Auto-reload tmux config after installation
 - **Stability**: Default TMUX_ENTER_DELAY set to 0.5s for better reliability
@@ -914,8 +896,7 @@ ccb reinstall
 - Fix oask session tracking bug - follow new session when OpenCode creates one
 
 ### v2.3.8
-- Simplify CCA detection: check for `.autoflow` folder in current directory
-- Plan mode enabled for CCA projects regardless of `-a` flag
+- Plan mode enabled for autoflow projects regardless of `-a` flag
 
 ### v2.3.7
 - Per-directory lock: different working directories can run cask/gask/oask independently
@@ -929,7 +910,7 @@ ccb reinstall
 - Fix oask returning stale reply when OpenCode still processing
 
 ### v2.3.4
-- Auto-enable plan mode when CCA (Claude Code Autoflow) is installed
+- Auto-enable plan mode when autoflow is installed
 
 ### v2.3.3
 - Simplify cping.md to match oping/gping style (~65% token reduction)

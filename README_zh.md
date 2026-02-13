@@ -257,22 +257,6 @@
 
 ---
 
-<h3 align="center">🧠 介绍 CCA (Claude Code Autoflow)</h3>
-
-释放 `ccb` 的全部潜力 —— **CCA** 是基于本桥接工具构建的高级工作流自动化系统。
-
-*   **工作流自动化**: 智能任务分配和自动化状态管理。
-*   **无缝集成**: 原生支持 v3.0 守护进程架构。
-
-[👉 在 GitHub 上查看项目](https://github.com/bfly123/claude_code_autoflow)
-
-**通过 CCB 安装:**
-```bash
-ccb update cca
-```
-
----
-
 ## 🚀 快速开始
 
 **第一步：** 安装 [WezTerm](https://wezfurlong.org/wezterm/)（Windows 请安装原生 `.exe` 版本）
@@ -379,7 +363,6 @@ ccb update              # 更新 ccb 到最新版本
 ccb update 4            # 更新到 v4.x.x 最高版本
 ccb update 4.1          # 更新到 v4.1.x 最高版本
 ccb update 4.1.2        # 更新到指定版本 v4.1.2
-ccb update cca          # 仅更新 CCA (Claude Code Autoflow)
 ccb uninstall           # 卸载 ccb 并清理配置
 ccb reinstall           # 清理后重新安装
 ```
@@ -777,7 +760,7 @@ ccb reinstall
 
 ### v5.0.1
 - **技能更新**：新增 `/all-plan`（Superpowers 头脑风暴 + 可用性分发）；Codex 侧新增 `lping/lpend`；`gask` 在 `CCB_DONE` 场景保留简要执行摘要。
-- **CCA 状态栏**：从 `.autoflow/roles.json` 读取角色名（支持 `_meta.name`），并按路径缓存。
+- **状态栏**：从 `.autoflow/roles.json` 读取角色名（支持 `_meta.name`），并按路径缓存。
 - **安装器**：安装技能时复制子目录（如 `references/`）。
 - **CLI**：新增 `ccb uninstall` / `ccb reinstall`，并清理 Claude 配置。
 - **路由**：项目/会话解析更严格（优先 `.ccb`，避免跨项目 Claude 会话）。

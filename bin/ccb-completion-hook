@@ -418,20 +418,25 @@ Result: {reply_content}
         if not ask_cmd:
             return 0
         try:
+            env = os.environ.copy()
+            if caller:
+                env["CCB_CALLER"] = caller
             # Use sys.executable to run ask command on Windows
             if os.name == "nt":
                 result = subprocess.run(
                     [sys.executable, ask_cmd, caller, "--notify", "--no-wrap", message],
                     capture_output=True,
                     text=True,
-                    timeout=timeout
+                    timeout=timeout,
+                    env=env,
                 )
             else:
                 result = subprocess.run(
                     [ask_cmd, caller, "--notify", "--no-wrap", message],
                     capture_output=True,
                     text=True,
-                    timeout=timeout
+                    timeout=timeout,
+                    env=env,
                 )
             return result.returncode
         except Exception:
@@ -447,19 +452,24 @@ Result: {reply_content}
     if not ask_cmd:
         return 0
     try:
+        env = os.environ.copy()
+        if caller:
+            env["CCB_CALLER"] = caller
         if os.name == "nt":
             subprocess.run(
                 [sys.executable, ask_cmd, caller, "--notify", "--no-wrap", message],
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
+                env=env,
             )
         else:
             subprocess.run(
                 [ask_cmd, caller, "--notify", "--no-wrap", message],
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
+                env=env,
             )
     except Exception:
         pass

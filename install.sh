@@ -742,6 +742,13 @@ install_claude_skills() {
     cp -r "$skills_src/docs" "$skills_dst/docs"
     echo "  Installed skills docs: docs/"
   fi
+
+  # Make autoloop scripts executable
+  local autoloop_sh="$skills_dst/tr/scripts/autoloop.sh"
+  local autoloop_py="$skills_dst/tr/scripts/autoloop.py"
+  [[ -f "$autoloop_sh" ]] && chmod +x "$autoloop_sh"
+  [[ -f "$autoloop_py" ]] && chmod +x "$autoloop_py"
+
   echo "Updated Claude skills directory: $skills_dst"
 }
 
@@ -1601,7 +1608,7 @@ except Exception:
 
 uninstall_claude_skills() {
   local skills_dst="$HOME/.claude/skills"
-  local ccb_skills="ask ping pend autonew mounted all-plan docs"
+  local ccb_skills="ask ping pend autonew mounted all-plan docs auto tp tr file-op review"
 
   if [[ ! -d "$skills_dst" ]]; then
     return
@@ -1618,7 +1625,7 @@ uninstall_claude_skills() {
 
 uninstall_codex_skills() {
   local skills_dst="${CODEX_HOME:-$HOME/.codex}/skills"
-  local ccb_skills="ask ping pend autonew mounted all-plan"
+  local ccb_skills="ask ping pend autonew mounted all-plan file-op"
 
   if [[ ! -d "$skills_dst" ]]; then
     return

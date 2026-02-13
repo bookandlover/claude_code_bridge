@@ -184,14 +184,10 @@ def _default_foreground() -> bool:
     return True
 
 
-def _default_caller() -> str:
+def _require_caller() -> str:
     caller = (os.environ.get("CCB_CALLER") or "").strip()
     if caller:
         return caller
-    if _env_bool("CCB_MANAGED", False):
-        return "codex"
-    if os.environ.get("CODEX_SESSION_ID") or os.environ.get("CODEX_RUNTIME_DIR"):
-        return "codex"
     print("[ERROR] CCB_CALLER is required. Set CCB_CALLER=<provider> (e.g. CCB_CALLER=claude).", file=sys.stderr)
     sys.exit(1)
 
@@ -282,11 +278,12 @@ def main(argv: list[str]) -> int:
 
     # Use unified daemon if enabled (CCB_UNIFIED_ASKD=1)
     if _use_unified_daemon() and foreground_mode:
-        caller = _default_caller()
+        caller = _require_caller()
         return _send_via_unified_daemon(provider, message, timeout, no_wrap, caller)
 
     # Notify mode: sync send, no wait for reply (used for hook notifications)
     if notify_mode:
+        _require_caller()
         cmd = [daemon_cmd, "--sync"]
         if no_wrap:
             cmd.append("--no-wrap")
@@ -311,8 +308,7 @@ def main(argv: list[str]) -> int:
         if no_wrap and provider == "claude":
             cmd.append("--no-wrap")
         env = os.environ.copy()
-        if not env.get("CCB_CALLER"):
-            env["CCB_CALLER"] = _default_caller()
+        env["CCB_CALLER"] = _require_caller()
         try:
             result = subprocess.run(cmd, input=message, text=True, env=env)
             return result.returncode
@@ -332,7 +328,7 @@ def main(argv: list[str]) -> int:
     _cleanup_task_logs(log_dir)
 
     # Detect caller from environment or default to "claude"
-    caller = _default_caller()
+    caller = _require_caller()
 
     # Get the path to this script for recursive call with --foreground
     ask_cmd = str(Path(__file__).resolve())
