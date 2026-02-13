@@ -399,6 +399,8 @@ ASKEOF
         )
 
     print(f"{provider.capitalize()} processing (task: {task_id}, log: {log_file})...")
+    print("[CCB_ASYNC_SUBMITTED]")
+    print("IMPORTANT: Task submitted. END YOUR TURN NOW. Do NOT call tools or poll logs.")
     return EXIT_OK
 
 
