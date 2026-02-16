@@ -34,7 +34,7 @@ $script:SCRIPTS_TO_LINK = @(
   "oask", "opend", "oping",
   "lask", "lpend", "lping",
   "dask", "dpend", "dping",
-  "ask", "ping", "pend", "autonew", "ccb-completion-hook", "maild"
+  "ask", "ccb-ping", "pend", "autonew", "ccb-completion-hook", "maild"
 )
 
 $script:CLAUDE_MARKDOWN = @(
@@ -258,7 +258,7 @@ function Install-Native {
     "oask", "oping", "opend",
     "lask", "lping", "lpend",
     "dask", "dping", "dpend",
-    "ask", "ping", "pend", "autonew", "ccb-completion-hook", "maild"
+    "ask", "ccb-ping", "pend", "autonew", "ccb-completion-hook", "maild"
   )
 
   # In MSYS/Git-Bash, invoking the script file directly will honor the shebang.
@@ -655,7 +655,7 @@ function Install-ClaudeConfig {
   } # end claudeMdTemplate check
 
   $allowList = @(
-    "Bash(ask:*)", "Bash(ping:*)", "Bash(pend:*)"
+    "Bash(ask:*)", "Bash(ccb-ping:*)", "Bash(pend:*)"
   )
 
   if (Test-Path $settingsJson) {
@@ -854,7 +854,7 @@ function Uninstall-Native {
 
   # 3. Remove Claude skills
   $claudeSkillsDir = Join-Path $env:USERPROFILE ".claude\skills"
-  $ccbSkills = @("ask", "ping", "pend", "autonew", "mounted", "all-plan", "docs")
+  $ccbSkills = @("ask", "cping", "ping", "pend", "autonew", "mounted", "all-plan", "docs")
   if (Test-Path $claudeSkillsDir) {
     Write-Host "Removing CCB Claude skills..."
     foreach ($skill in $ccbSkills) {
@@ -883,7 +883,7 @@ function Uninstall-Native {
   # 5. Remove settings.json permissions
   $settingsFile = Join-Path $env:USERPROFILE ".claude\settings.json"
   if (Test-Path $settingsFile) {
-    $permsToRemove = @("Bash(ask:*)", "Bash(ping:*)", "Bash(pend:*)")
+    $permsToRemove = @("Bash(ask:*)", "Bash(ping:*)", "Bash(ccb-ping:*)", "Bash(pend:*)")
     try {
       $settings = Get-Content $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json
       if ($settings.permissions -and $settings.permissions.allow) {

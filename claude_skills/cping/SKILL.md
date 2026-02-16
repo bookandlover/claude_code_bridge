@@ -1,5 +1,5 @@
 ---
-name: ping
+name: cping
 description: Test connectivity with AI provider (gemini/codex/opencode/droid/claude).
 metadata:
   short-description: Test AI provider connectivity
@@ -20,20 +20,13 @@ The first argument must be the provider name:
 
 ## Execution (MANDATORY)
 
-**Windows Native - use ccb-ping to avoid conflict with system ping:**
+Use `ccb-ping` wrapper to avoid conflict with system `ping`:
 ```
 Bash(ccb-ping $PROVIDER)
 ```
 
-**Linux/macOS/WSL:**
-```
-Bash(ping $PROVIDER)
-```
-
-IMPORTANT: On Windows, the system `PING.EXE` takes priority. Use `ccb-ping` wrapper instead.
-
 ## Examples
 
-- `/ping gemini`
-- `/ping codex`
-- `/ping claude`
+- `/cping gemini`
+- `/cping codex`
+- `/cping claude`

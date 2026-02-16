@@ -41,5 +41,5 @@ EOF
 
 ## Notes
 
-- If it fails, check backend health with the corresponding ping command (`ping <provider>` (e.g., `ping gemini`)).
+- If it fails, check backend health with the corresponding ping command (`ccb-ping <provider>` (e.g., `ccb-ping gemini`)).
 - Codex-managed sessions default to foreground; use `--background` or `CCB_ASK_BACKGROUND=1` for async.

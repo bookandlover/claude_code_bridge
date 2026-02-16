@@ -1,5 +1,5 @@
 ---
-name: ping
+name: cping
 description: Test connectivity with AI provider (gemini/codex/opencode/droid/claude).
 metadata:
   short-description: Test AI provider connectivity
@@ -21,11 +21,11 @@ The first argument must be the provider name:
 ## Execution (MANDATORY)
 
 ```powershell
-ping $ARGUMENTS
+ccb-ping $ARGUMENTS
 ```
 
 ## Examples
 
-- `/ping gemini`
-- `/ping codex`
-- `/ping claude`
+- `/cping gemini`
+- `/cping codex`
+- `/cping claude`

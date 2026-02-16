@@ -21,4 +21,4 @@ EOF
 
 ## Notes
 
-- If it fails, check backend health with `ping <provider>` (e.g., `ping gemini`).
+- If it fails, check backend health with `ccb-ping <provider>` (e.g., `ccb-ping gemini`).

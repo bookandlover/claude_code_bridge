@@ -21,7 +21,7 @@ The first argument must be the provider name:
 ## Execution (MANDATORY)
 
 ```bash
-ping $ARGUMENTS
+ccb-ping $ARGUMENTS
 ```
 
 ## Examples

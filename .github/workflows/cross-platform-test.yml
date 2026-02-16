@@ -58,9 +58,9 @@ jobs:
       - name: Test unified commands syntax (Unix)
         if: runner.os != 'Windows'
         run: |
-          chmod +x bin/ask bin/ping bin/pend
+          chmod +x bin/ask bin/ccb-ping bin/pend
           python bin/ask --help
-          python bin/ping --help
+          python bin/ccb-ping --help
           python bin/pend --help
           echo "✅ Unified commands syntax test passed"
 
@@ -69,7 +69,7 @@ jobs:
         shell: pwsh
         run: |
           python bin/ask --help
-          python bin/ping --help
+          python bin/ccb-ping --help
           python bin/pend --help
           Write-Host "Unified commands syntax test passed"
 

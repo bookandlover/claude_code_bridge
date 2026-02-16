@@ -28,7 +28,7 @@ if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "${WINDIR:-
     # Check session file exists first
     if [[ -f "$CWD/.ccb/.${provider}-session" ]] || [[ -f "$CWD/.ccb_config/.${provider}-session" ]] || [[ -f "$CWD/.${provider}-session" ]]; then
       # Try the ping command to check if daemon is responsive
-      if "$SCRIPT_DIR/ping" "$provider" >/dev/null 2>&1; then
+      if "$SCRIPT_DIR/ccb-ping" "$provider" >/dev/null 2>&1; then
         MOUNTED="$MOUNTED $provider"
       fi
     fi
