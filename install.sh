@@ -116,7 +116,7 @@ SCRIPTS_TO_LINK=(
   bin/dpend
   bin/dping
   bin/ask
-  bin/ping
+  bin/ccb-ping
   bin/pend
   bin/autonew
   bin/ccb-completion-hook
@@ -130,6 +130,7 @@ CLAUDE_MARKDOWN=(
 )
 
 LEGACY_SCRIPTS=(
+  ping
   cast
   cast-w
   codex-ask
@@ -694,8 +695,8 @@ install_claude_skills() {
 
   mkdir -p "$skills_dst"
 
-  # Clean up obsolete CCB skills (replaced by unified ask/ping/pend)
-  local obsolete_skills="cask gask oask dask lask cpend gpend opend dpend lpend cping gping oping dping lping"
+  # Clean up obsolete CCB skills (replaced by unified ask/cping/pend)
+  local obsolete_skills="cask gask oask dask lask cpend gpend opend dpend lpend cping gping oping dping lping ping auto"
   for obs_skill in $obsolete_skills; do
     if [[ -d "$skills_dst/$obs_skill" ]]; then
       rm -rf "$skills_dst/$obs_skill"
@@ -1136,7 +1137,7 @@ install_settings_permissions() {
 
   local perms_to_add=(
     'Bash(ask *)'
-    'Bash(ping *)'
+    'Bash(ccb-ping *)'
     'Bash(pend *)'
   )
 
@@ -1146,7 +1147,7 @@ install_settings_permissions() {
 	  "permissions": {
 	    "allow": [
 	      "Bash(ask *)",
-	      "Bash(ping *)",
+	      "Bash(ccb-ping *)",
 	      "Bash(pend *)"
 	    ],
     "deny": []
@@ -1156,6 +1157,33 @@ SETTINGS
     echo "Created $settings_file with permissions"
     return
   fi
+
+  # Remove legacy permissions from previous versions
+  local perms_to_remove=(
+    'Bash(ping *)'
+  )
+  for old_perm in "${perms_to_remove[@]}"; do
+    if grep -q "$old_perm" "$settings_file" 2>/dev/null; then
+      if pick_python_bin; then
+        "$PYTHON_BIN" -c "
+import json, sys
+path = '$settings_file'
+old_perm = '$old_perm'
+try:
+    with open(path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    allow = data.get('permissions', {}).get('allow', [])
+    if old_perm in allow:
+        allow.remove(old_perm)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+except Exception as e:
+    sys.stderr.write(f'WARN: failed cleaning {path}: {e}\n')
+"
+        echo "  Removed legacy permission: $old_perm"
+      fi
+    fi
+  done
 
   local added=0
   for perm in "${perms_to_add[@]}"; do
@@ -1540,6 +1568,7 @@ uninstall_settings_permissions() {
   local perms_to_remove=(
     'Bash(ask *)'
     'Bash(ping *)'
+    'Bash(ccb-ping *)'
     'Bash(pend *)'
     'Bash(cask:*)'
     'Bash(cpend)'
@@ -1571,6 +1600,7 @@ path = '$settings_file'
 perms_to_remove = [
     'Bash(ask *)',
     'Bash(ping *)',
+    'Bash(ccb-ping *)',
     'Bash(pend *)',
     'Bash(cask:*)',
     'Bash(cpend)',
@@ -1608,7 +1638,7 @@ except Exception:
 
 uninstall_claude_skills() {
   local skills_dst="$HOME/.claude/skills"
-  local ccb_skills="ask ping pend autonew mounted all-plan docs auto tp tr file-op review"
+  local ccb_skills="ask cping ping pend autonew mounted all-plan docs tp tr file-op review"
 
   if [[ ! -d "$skills_dst" ]]; then
     return
