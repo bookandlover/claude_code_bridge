@@ -393,13 +393,9 @@ def main(argv: list[str]) -> int:
         print("[ERROR] Message cannot be empty", file=sys.stderr)
         return EXIT_ERROR
 
-    # Use unified daemon if enabled (CCB_UNIFIED_ASKD=1)
-    # Changed: removed foreground_mode requirement to support all modes
-    if _use_unified_daemon():
-        caller = _require_caller()
-        return _send_via_unified_daemon(provider, message, timeout, no_wrap, caller)
-
     # Notify mode: sync send, no wait for reply (used for hook notifications)
+    # MUST be checked before unified daemon path to avoid full request-response cycle
+    # which would cause reply-to-self loops via notify_completion -> ask -> daemon -> notify_completion
     if notify_mode:
         _require_caller()
         cmd = [daemon_cmd, "--sync"]
@@ -419,6 +415,11 @@ def main(argv: list[str]) -> int:
         except Exception as e:
             print(f"[ERROR] {e}", file=sys.stderr)
             return EXIT_ERROR
+
+    # Use unified daemon if enabled (default: True)
+    if _use_unified_daemon():
+        caller = _require_caller()
+        return _send_via_unified_daemon(provider, message, timeout, no_wrap, caller)
 
     # Foreground mode: run provider directly (avoid background cleanup in managed envs)
     if foreground_mode:
